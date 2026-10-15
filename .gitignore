@@ -3,11 +3,35 @@ bin/
 obj/
 artifacts/
 *.zip
+*.md5sum
+*.nupkg
 
-# IDE
+# Test results and coverage
+TestResults/
+*.trx
+coverage/
+*.coverage
+*.coveragexml
+
+# IDEs and editors
 .vs/
+.vscode/
 .idea/
 *.user
+*.suo
+*.swp
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python (release packaging script, jprm)
+__pycache__/
+*.pyc
+.venv/
+venv/
 
 # Dev instance (local settings and throwaway data)
 dev/.env
@@ -15,9 +39,13 @@ dev/config*/
 dev/cache*/
 dev/media*/
 
-# Secrets
+# Secrets: never commit API keys, tokens or passwords
 .env
 *.env
+
+# Logs and temporary files
+*.log
+*.tmp
 
 # Local Claude Code settings
 .claude/

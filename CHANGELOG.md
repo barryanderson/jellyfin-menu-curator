@@ -2,6 +2,11 @@
 
 Versions follow Jellyfin's four-part plugin versioning (`major.minor.build.revision`). Each release section is used as the GitHub release notes.
 
+## [Unreleased]
+
+- Reset the menu with **Reset menu** on the settings page, or with the new **Reset dashboard menu** scheduled task.
+- The menu now returns to normal as soon as Menu Curator is uninstalled, or at the next dashboard reload after it is disabled, instead of only after Jellyfin restarts.
+
 ## [1.0.0.0]
 
 First release. Requires Jellyfin 12.2 or later.

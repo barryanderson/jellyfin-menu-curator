@@ -61,6 +61,12 @@ The menu is the same for every administrator. Changes apply to every browser and
 - **A plugin is updated:** your rules still apply, as long as the plugin keeps its page names.
 - **A plugin is removed or disabled:** its rules move to **Rules for pages that are not loaded**.
 
+## Resetting the menu
+
+To start again, select **Reset menu** at the bottom of the settings page and confirm. This deletes all your Menu Curator settings: hidden and added pages, names, icons, order, and rules for pages that are not loaded. The dashboard reloads with the menu the plugins themselves ask for.
+
+If the settings page cannot be opened, open **Dashboard > Scheduled Tasks** and run **Reset dashboard menu**, in the **Menu Curator** category. It does the same, and has no schedule, so it only runs when you start it. Reload the dashboard afterwards; the menu can take up to a minute to update.
+
 ## Removing Menu Curator
 
-Uninstall it from **Dashboard > Plugins** and restart Jellyfin. The dashboard menu returns to normal straight away. See the [README](../README.md#uninstalling-and-rolling-back) for manual removal.
+Uninstall it from **Dashboard > Plugins**. The dashboard menu returns to normal straight away, and the plugin is removed completely when Jellyfin restarts. Disabling the plugin also returns the menu to normal; reload the dashboard to see it, as the dashboard can keep the old menu for up to a minute. See the [README](../README.md#uninstalling-and-rolling-back) for manual removal.

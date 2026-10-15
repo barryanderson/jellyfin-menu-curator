@@ -38,6 +38,7 @@ Many plugins add an entry to the dashboard menu, and many useful settings pages 
 - **Instant updates:** saving reloads the dashboard with the new menu.
 - **Safe by design:** the menu is adjusted on the server, with no scripts injected into the web client. If anything goes wrong, the normal menu is served and a warning is logged.
 - **Keeps your rules** for plugins that are disabled or removed, and applies them again if the plugin returns.
+- **Reset in one click** from the settings page, or from a scheduled task if the settings page cannot be opened.
 
 ## Requirements
 
@@ -90,6 +91,7 @@ Open **Menu Curator** from the dashboard menu, or from **Dashboard > Plugins > M
 | **Other pages** | Pages that are not in the menu. Tick one to add it to the bottom of the menu. |
 | **Rules for pages that are not loaded** | Rules for plugins that are disabled or removed. Untick one to delete it. Shown only when needed. |
 | **Plugins with no settings page** | Plugins that have no page, so cannot appear in the menu. |
+| **Reset** | **Reset menu** deletes all your Menu Curator settings and returns the menu to normal. |
 
 Click **Save**. The dashboard reloads with the new menu.
 
@@ -126,11 +128,12 @@ Not at the moment. Jellyfin 12.2 places every plugin entry in a single Plugins s
 Your rules keep applying, as long as the plugin keeps the same page names. If a plugin adds a new menu page, it appears at the bottom of the menu until you place it.
 
 **Can Menu Curator break my dashboard?**
-It is designed not to. It only changes the menu list, and if anything unexpected happens it serves the normal menu instead. Uninstalling it restores the normal menu straight away.
+It is designed not to. It only changes the menu list, and if anything unexpected happens it serves the normal menu instead. Resetting or uninstalling it restores the normal menu straight away, and disabling it does so at the next dashboard reload.
 
 ## Uninstalling and rolling back
 
-- **Uninstall:** open **Dashboard > Plugins**, select **Menu Curator**, choose **Uninstall** and restart Jellyfin. The menu returns to normal.
+- **Reset the menu, keeping the plugin:** select **Reset menu** on the Menu Curator settings page, or run **Reset dashboard menu** from **Dashboard > Scheduled Tasks**.
+- **Uninstall:** open **Dashboard > Plugins**, select **Menu Curator** and choose **Uninstall**. The menu returns to normal straight away; restart Jellyfin when prompted to finish removing the plugin. Disabling the plugin also returns the menu to normal; reload the dashboard to see it, as the dashboard can keep the old menu for up to a minute.
 - **Remove manually:** stop Jellyfin, delete the `MenuCurator_<version>` folder from the plugins folder, and start Jellyfin.
 - **Roll back:** remove the current version, then install an earlier release's zip manually.
 - **Forget your rules:** delete `plugins/configurations/Jellyfin.Plugin.MenuCurator.xml`.
@@ -141,6 +144,7 @@ It is designed not to. It only changes the menu list, and if anything unexpected
 |---|---|
 | The menu has not changed after saving | Reload the dashboard. If it still shows the old menu, wait a minute and reload again: some browsers keep a copy of the menu for up to a minute. |
 | I hid Menu Curator and cannot find it | Open **Dashboard > Plugins**, select **Menu Curator**, then **Settings**. |
+| I want the normal menu back | Select **Reset menu** on the settings page, or run **Reset dashboard menu** from **Dashboard > Scheduled Tasks**. |
 | The settings page shows an error | Look in the browser console for lines starting with `[MenuCurator]`, and in the server log for lines containing `MenuCurator`. |
 | No plugin image on the Plugins page | Check that `banner.png` and `meta.json` are in the plugin folder, and restart Jellyfin. |
 

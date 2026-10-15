@@ -22,7 +22,7 @@ The version is set once, in `build.yaml` (`version`). `Directory.Build.props` re
    - `version`: the new version.
    - `changelog`: a short summary. Jellyfin shows it on the plugin's page.
    - `targetAbi`: the minimum Jellyfin version, if it changed.
-2. Add a section for the version at the top of `CHANGELOG.md`, headed `## [<version>]`. It becomes the release notes.
+2. In `CHANGELOG.md`, rename the `## [Unreleased]` section to `## [<version>]` (add one if there is none). It becomes the release notes.
 3. Commit to `main` and push.
 4. Tag the commit and push the tag:
 

@@ -2,43 +2,74 @@
   <img src="assets/banner.png" alt="Menu Curator for Jellyfin" width="720">
 </p>
 
+<p align="center">
+  <a href="https://github.com/barryanderson/jellyfin-menu-curator/actions/workflows/ci.yaml"><img src="https://github.com/barryanderson/jellyfin-menu-curator/actions/workflows/ci.yaml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/barryanderson/jellyfin-menu-curator/releases/latest"><img src="https://img.shields.io/github/v/release/barryanderson/jellyfin-menu-curator?label=release" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/Jellyfin-12.2%2B-AA5CC3?logo=jellyfin&logoColor=white" alt="Jellyfin 12.2 or later">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/barryanderson/jellyfin-menu-curator" alt="Licence: GPL-3.0"></a>
+</p>
+
 # Menu Curator
 
-A Jellyfin server plugin that lets administrators curate the **Plugins** section of the dashboard menu.
+**Take control of the Plugins section of the Jellyfin dashboard menu.**
 
-- **Hide** plugin pages you do not use.
-- **Add** pages that their plugins leave out of the menu, such as a plugin's settings page.
-- **Rename** entries, **change their icons** and **reorder** them.
+Many plugins add an entry to the dashboard menu, and many useful settings pages are not in the menu at all. Menu Curator lets administrators decide what appears there, what it is called, which icon it shows and where it sits.
 
-Changes apply to the dashboard for every administrator, and the menu updates as soon as you save.
+## Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Using Menu Curator](#using-menu-curator)
+- [How it works](#how-it-works)
+- [Frequently asked questions](#frequently-asked-questions)
+- [Uninstalling and rolling back](#uninstalling-and-rolling-back)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Licence](#licence)
+
+## Features
+
+- **Hide** plugin pages you never use, without disabling the plugin. Their settings stay available from **Dashboard > Plugins**.
+- **Add** pages that their plugins leave out of the menu, so the settings you use most are one click away.
+- **Rename** any entry.
+- **Change icons** from a list of suitable icons. The plugin's own icon is offered first when it has one, and any other Material icon can be entered by name.
+- **Reorder** entries with move up and move down buttons.
+- **Instant updates:** saving reloads the dashboard with the new menu.
+- **Safe by design:** the menu is adjusted on the server, with no scripts injected into the web client. If anything goes wrong, the normal menu is served and a warning is logged.
+- **Keeps your rules** for plugins that are disabled or removed, and applies them again if the plugin returns.
 
 ## Requirements
 
 - Jellyfin **12.2 or later**.
 - An administrator account.
 
-Any Jellyfin installation works: the official Docker image, the linuxserver.io image, native Linux packages and Windows.
+Works on any Jellyfin installation: the official Docker image, the linuxserver.io image, native Linux packages and Windows.
 
 ## Installation
 
 ### From the plugin repository (recommended)
 
 1. In Jellyfin, open **Dashboard > Plugins** and select **Manage Repositories**. Add a repository:
-   - **Name:** `Menu Curator`
-   - **URL:** `https://raw.githubusercontent.com/OWNER/jellyfin-plugin-menu-curator/main/manifest.json`
-2. Back on **Dashboard > Plugins**, show **Available** plugins (or search for "Menu Curator"), open **Menu Curator** and select **Install**.
+
+   | Field | Value |
+   |---|---|
+   | Name | `Menu Curator` |
+   | URL | `https://raw.githubusercontent.com/barryanderson/jellyfin-menu-curator/main/manifest.json` |
+
+2. Back on **Dashboard > Plugins**, show **Available** plugins or search for "Menu Curator", open it and select **Install**.
 3. Restart Jellyfin when prompted.
 
-Updates then appear on the Plugins page like any other plugin.
+New versions then appear on the Plugins page like any other plugin update.
 
 ### Manual installation
 
-1. Download `menu-curator_<version>.zip` from the [releases page](https://github.com/OWNER/jellyfin-plugin-menu-curator/releases).
+1. Download `menu-curator_<version>.zip` from the [latest release](https://github.com/barryanderson/jellyfin-menu-curator/releases/latest).
 2. Find Jellyfin's data folder: on the dashboard home page, the **Paths** card lists it as **Program Data**. The server log also prints it at startup.
-3. Create a folder called `MenuCurator_<version>` inside the `plugins` folder there, and extract the zip into it.
-4. Make sure the Jellyfin user can read the new folder, then restart Jellyfin.
+3. Inside its `plugins` folder, create a folder called `MenuCurator_<version>` (for example `MenuCurator_1.0.0.0`) and extract the zip into it. The folder should contain `Jellyfin.Plugin.MenuCurator.dll`, `meta.json` and `banner.png`.
+4. Make sure the account Jellyfin runs as can read the folder, then restart Jellyfin.
 
-Common plugin folders, as examples only:
+Typical plugin folders, as examples:
 
 | Installation | Plugins folder |
 |---|---|
@@ -47,60 +78,105 @@ Common plugin folders, as examples only:
 | Debian and Ubuntu packages | `/var/lib/jellyfin/plugins` |
 | Windows | `%ProgramData%\Jellyfin\Server\plugins` |
 
-For Docker, these paths are inside the container; copy the files to wherever your `/config` volume lives on the host.
-
-The plugin's image only appears on the Plugins page when it is installed from the repository.
+For Docker, these paths are inside the container: copy the files to wherever your `/config` volume is on the host.
 
 ## Using Menu Curator
 
-Open **Menu Curator** from the dashboard menu (or from **Dashboard > Plugins**). The page lists every plugin page that can appear in the menu:
+Open **Menu Curator** from the dashboard menu, or from **Dashboard > Plugins > Menu Curator > Settings**.
 
-- **In the menu:** the pages currently shown, in menu order. Untick one to hide it, set a **Menu name** or **Icon**, and use the arrows to reorder.
-- **Other pages:** pages their plugins leave out of the menu. Tick one to add it.
+| Section | What you can do |
+|---|---|
+| **In the menu** | The pages currently in the menu, in order. Untick a page to hide it, set a **Menu name**, choose an **Icon**, and use the arrows to move it. |
+| **Other pages** | Pages that are not in the menu. Tick one to add it to the bottom of the menu. |
+| **Rules for pages that are not loaded** | Rules for plugins that are disabled or removed. Untick one to delete it. Shown only when needed. |
+| **Plugins with no settings page** | Plugins that have no page, so cannot appear in the menu. |
 
 Click **Save**. The dashboard reloads with the new menu.
 
-The [user guide](docs/user-guide.md) covers every option in detail.
+The [user guide](docs/user-guide.md) explains every option in detail.
 
 ## How it works
 
-The dashboard builds its Plugins menu from the server's list of plugin configuration pages. Menu Curator adjusts that list on the server, just before it is sent to the dashboard, using the rules you save. It does not inject any script into the web client and does not depend on other plugins.
+The dashboard builds its Plugins menu by asking the server for the list of plugin configuration pages that belong in the menu. Menu Curator adjusts that one list on the server, just before it is sent, by applying the rules you save:
 
-Only the menu's own request is changed. The full page list that the Plugins pages use for their **Settings** links is left exactly as the server built it.
+1. **Hide** the pages you have unticked.
+2. **Add** the pages you have ticked from **Other pages**.
+3. **Override** names and icons.
+4. **Order** the entries, with any new pages placed after the ones you have ordered.
 
-If anything unexpected happens while adjusting the menu, Menu Curator logs a warning and serves the normal menu. A problem with this plugin should never stop the dashboard from working.
+Nothing else is changed. In particular, the full page list that the Plugins pages use for their **Settings** links is left exactly as the server built it. Your rules are stored with the plugin's configuration, in `plugins/configurations/Jellyfin.Plugin.MenuCurator.xml`.
 
-## Limitations
+The research behind this approach, with references to the Jellyfin source, is in [docs/findings.md](docs/findings.md).
 
-- **Icons are Material icons.** The dashboard menu draws icons from the Material icon font by name, so plugin logos cannot be used as menu icons. The icon list offers a plugin's own icon first when it declares one.
-- **Pages, not plugins.** Only plugins that register a settings page can appear in the menu. The settings page lists plugins that have none.
-- **One menu for everyone.** The menu is the same for every administrator.
+## Frequently asked questions
+
+**Can I use a plugin's logo as its menu icon?**
+No. The dashboard menu draws icons from the Material icon font by name, so only Material icons can be shown. When a plugin declares an icon of its own, Menu Curator offers it first.
+
+**Does each administrator get their own menu?**
+No. The menu is the same for every administrator, on every device.
+
+**Why is a plugin missing from the list?**
+Only plugins that register a settings page can appear in the menu. Plugins without one are listed at the bottom of the settings page. Disabled plugins do not appear until they are enabled again.
+
+**Can I group entries into sections?**
+Not at the moment. Jellyfin 12.2 places every plugin entry in a single Plugins section, and ignores the section a plugin asks for.
+
+**What happens when a plugin is updated?**
+Your rules keep applying, as long as the plugin keeps the same page names. If a plugin adds a new menu page, it appears at the bottom of the menu until you place it.
+
+**Can Menu Curator break my dashboard?**
+It is designed not to. It only changes the menu list, and if anything unexpected happens it serves the normal menu instead. Uninstalling it restores the normal menu straight away.
 
 ## Uninstalling and rolling back
 
-- **Uninstall:** open **Dashboard > Plugins**, select **Menu Curator** and uninstall it, then restart Jellyfin. The dashboard menu returns to normal.
-- **Manual removal:** stop Jellyfin, delete the `MenuCurator_<version>` folder from the plugins folder, and start Jellyfin again.
-- **Roll back a version:** install the previous release's zip manually in place of the current one.
-
-Your saved menu rules stay in `plugins/configurations/Jellyfin.Plugin.MenuCurator.xml` until you delete that file.
+- **Uninstall:** open **Dashboard > Plugins**, select **Menu Curator**, choose **Uninstall** and restart Jellyfin. The menu returns to normal.
+- **Remove manually:** stop Jellyfin, delete the `MenuCurator_<version>` folder from the plugins folder, and start Jellyfin.
+- **Roll back:** remove the current version, then install an earlier release's zip manually.
+- **Forget your rules:** delete `plugins/configurations/Jellyfin.Plugin.MenuCurator.xml`.
 
 ## Troubleshooting
 
-- **The menu has not changed after saving.** Reload the dashboard. If it still shows the old menu, wait a minute and reload again: the dashboard caches the menu for up to a minute in some browsers.
-- **I hid Menu Curator and cannot find it.** Open **Dashboard > Plugins**, select **Menu Curator**, then **Settings**.
-- **Something looks wrong.** Check the server log for lines containing `MenuCurator`, and the browser console for lines starting with `[MenuCurator]`. Please include both when [reporting an issue](https://github.com/OWNER/jellyfin-plugin-menu-curator/issues).
+| Problem | What to try |
+|---|---|
+| The menu has not changed after saving | Reload the dashboard. If it still shows the old menu, wait a minute and reload again: some browsers keep a copy of the menu for up to a minute. |
+| I hid Menu Curator and cannot find it | Open **Dashboard > Plugins**, select **Menu Curator**, then **Settings**. |
+| The settings page shows an error | Look in the browser console for lines starting with `[MenuCurator]`, and in the server log for lines containing `MenuCurator`. |
+| No plugin image on the Plugins page | Check that `banner.png` and `meta.json` are in the plugin folder, and restart Jellyfin. |
 
-## Building from source
+If you need help, please [open an issue](https://github.com/barryanderson/jellyfin-menu-curator/issues) with your Jellyfin version, how Jellyfin is installed, and any `MenuCurator` lines from the server log and browser console. Remove access tokens and other private details first.
 
-Requires the .NET 10 SDK.
+## Contributing
+
+Bug reports, ideas and pull requests are welcome.
+
+### Building from source
+
+Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
 dotnet build -c Release
 dotnet test
 ```
 
-The plugin is built to `Jellyfin.Plugin.MenuCurator/bin/Release/net10.0/Jellyfin.Plugin.MenuCurator.dll`. A throwaway Jellyfin instance for testing is described in [dev/README.md](dev/README.md), and the release process in [docs/releasing.md](docs/releasing.md).
+The plugin is built to `Jellyfin.Plugin.MenuCurator/bin/Release/net10.0/Jellyfin.Plugin.MenuCurator.dll`. Test changes on a throwaway server first: [dev/README.md](dev/README.md) sets one up with Docker.
+
+### Project layout
+
+| Path | Contents |
+|---|---|
+| `Jellyfin.Plugin.MenuCurator/` | The plugin: the menu filter, the rule engine, the page list endpoint and the settings page. |
+| `Jellyfin.Plugin.MenuCurator.Tests/` | Unit tests. |
+| `build.yaml` | Plugin metadata and the version number, used when packaging releases. |
+| `manifest.json` | The plugin repository that Jellyfin servers read. Updated automatically on release. |
+| `assets/` | Logo and banner, as SVG sources and PNG renders. |
+| `dev/` | A Docker Compose setup for a throwaway test server. |
+| `docs/` | The user guide, release process and research notes. |
+
+Releases are built by GitHub Actions from version tags; see [docs/releasing.md](docs/releasing.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Licence
 
-[GPL-3.0](LICENSE), the same as the Jellyfin plugin template this project started from.
+Menu Curator is licensed under the [GNU General Public Licence v3.0](LICENSE), like the [Jellyfin plugin template](https://github.com/jellyfin/jellyfin-plugin-template) it is based on.
+
+Menu Curator is a community plugin and is not affiliated with the Jellyfin project.

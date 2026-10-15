@@ -4,10 +4,9 @@ Releases are built by GitHub Actions when a version tag is pushed. The workflow 
 
 ## One-time setup
 
-1. Create the GitHub repository `jellyfin-plugin-menu-curator` and push `main` to it.
-2. Replace `OWNER` in `README.md` with the GitHub account or organisation name (it appears in the repository URL and the links). `build.yaml` needs no change: the release workflow fills in the owner and repository itself.
-3. Under **Settings > Actions > General > Workflow permissions**, choose **Read and write permissions**, so the release workflow can create releases and commit `manifest.json`.
-4. If `main` is protected, allow GitHub Actions to push to it, or the manifest update step will fail after the release has been created.
+1. The repository is [barryanderson/jellyfin-menu-curator](https://github.com/barryanderson/jellyfin-menu-curator). `build.yaml` names no repository: the release workflow fills in the owner and repository itself, so forks release under their own name. The links in `README.md` name this repository directly.
+2. Under **Settings > Actions > General > Workflow permissions**, choose **Read and write permissions**, so the release workflow can create releases and commit `manifest.json`.
+3. If `main` is protected, allow GitHub Actions to push to it, or the manifest update step will fail after the release has been created.
 
 ## Version numbers
 

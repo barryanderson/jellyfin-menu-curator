@@ -1,0 +1,116 @@
+name: Release
+
+# Push a tag v<version>, where <version> matches build.yaml, to publish a release.
+# Builds and tests the plugin, packages it with jprm, attaches the zip to a GitHub release,
+# then adds the version to manifest.json on main so servers see it in the catalogue.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install jprm
+        run: pip install "jprm==1.1.0"
+
+      - name: Check the tag matches build.yaml
+        id: version
+        run: |
+          version="$(sed -n 's/^version:[[:space:]]*"\{0,1\}\([0-9.]*\).*/\1/p' build.yaml)"
+          target_abi="$(sed -n 's/^targetAbi:[[:space:]]*"\{0,1\}\([0-9.]*\).*/\1/p' build.yaml)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match build.yaml version $version (expected v$version)."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME is not on main."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "target_abi=$target_abi" >> "$GITHUB_OUTPUT"
+
+      - name: Fill in repository details
+        run: |
+          sed -i \
+            -e "s#GITHUB_REPOSITORY#${GITHUB_REPOSITORY}#g" \
+            -e "s#GITHUB_OWNER#${GITHUB_REPOSITORY_OWNER}#g" \
+            build.yaml
+
+      - name: Test
+        run: dotnet test Jellyfin.Plugin.MenuCurator.slnx -c Release
+
+      - name: Package
+        run: |
+          mkdir -p artifacts
+          jprm --verbosity=debug plugin build . \
+            --output=artifacts \
+            --version="${{ steps.version.outputs.version }}" \
+            --dotnet-framework=net10.0
+          ls -l artifacts
+
+      - name: Create the GitHub release
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          zip="artifacts/menu-curator_${version}.zip"
+          test -f "$zip"
+
+          # Release notes: the matching CHANGELOG.md section, plus the Jellyfin version it needs.
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "Requires Jellyfin ${{ steps.version.outputs.target_abi }} or later."
+            echo
+            echo "MD5: \`$(cut -d' ' -f1 "$zip.md5sum" 2>/dev/null || md5sum "$zip" | cut -d' ' -f1)\`"
+          } >> notes.md
+
+          gh release create "$GITHUB_REF_NAME" "$zip" \
+            --title "Menu Curator $version" \
+            --notes-file notes.md \
+            --verify-tag
+
+      - name: Add the release to manifest.json
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          zip="artifacts/menu-curator_${version}.zip"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/menu-curator_${version}.zip"
+
+          # Packaging edited build.yaml and Directory.Build.props; discard that before switching branch.
+          git reset --hard
+          git checkout main
+          git pull --ff-only origin main
+
+          # jprm needs a directory in the manifest path.
+          jprm --verbosity=debug repo add --plugin-url "$url" ./manifest.json "$zip"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Add Menu Curator ${version} to manifest.json"
+          git push origin main

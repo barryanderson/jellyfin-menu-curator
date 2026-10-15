@@ -5,7 +5,7 @@ set -euo pipefail
 
 profile="${1:?usage: dev/install.sh official|lsio}"
 here="$(cd "$(dirname "$0")" && pwd)"
-version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$here/../Directory.Build.props")"
+version="$(sed -n 's/^version:[[:space:]]*"\{0,1\}\([0-9.]*\).*/\1/p' "$here/../build.yaml")"
 build="$here/../Jellyfin.Plugin.MenuCurator/bin/Release/net10.0"
 
 # The two images keep plugins in different places under /config.

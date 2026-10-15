@@ -9,7 +9,7 @@
 services:
   jellyfin-official:
     profiles: ["official"]
-    image: jellyfin/jellyfin:10.11.11
+    image: jellyfin/jellyfin:12.2
     container_name: menucurator-dev-official
     ports:
       - "${JELLYFIN_DEV_PORT:-8097}:8096"
@@ -20,7 +20,7 @@ services:
 
   jellyfin-lsio:
     profiles: ["lsio"]
-    image: lscr.io/linuxserver/jellyfin:10.11.11
+    image: lscr.io/linuxserver/jellyfin:version-12.2ubu2604
     container_name: menucurator-dev-lsio
     environment:
       - PUID=${PUID:-1000}

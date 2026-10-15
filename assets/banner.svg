@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-labelledby="title">
+  <title id="title">Menu Curator for Jellyfin</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A1430"/>
+      <stop offset="1" stop-color="#0B1B2A"/>
+    </linearGradient>
+    <radialGradient id="glowPurple" cx="0.22" cy="0.3" r="0.55">
+      <stop offset="0" stop-color="#AA5CC3" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#AA5CC3" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="0.85" cy="0.85" r="0.6">
+      <stop offset="0" stop-color="#00A4DC" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#00A4DC" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#C58AE0"/>
+      <stop offset="1" stop-color="#3FC2F0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect width="1280" height="720" fill="url(#glowPurple)"/>
+  <rect width="1280" height="720" fill="url(#glowBlue)"/>
+
+  <!-- Logo, kept inside the central area so card crops keep it whole -->
+  <svg x="150" y="190" width="340" height="340" viewBox="0 0 512 512">
+      <defs>
+        <linearGradient id="logoTile" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#AA5CC3"/>
+          <stop offset="1" stop-color="#00A4DC"/>
+        </linearGradient>
+        <linearGradient id="logoInk" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#8E63CF"/>
+          <stop offset="1" stop-color="#2C8FD8"/>
+        </linearGradient>
+        <linearGradient id="logoBadge" gradientUnits="userSpaceOnUse" x1="336" y1="404" x2="472" y2="404">
+          <stop offset="0" stop-color="#8E63CF"/>
+          <stop offset="1" stop-color="#2C8FD8"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Tile -->
+      <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#logoTile)"/>
+
+      <!-- Sidebar panel -->
+      <rect x="88" y="96" width="336" height="320" rx="40" fill="#FFFFFF" fill-opacity="0.16"/>
+
+      <!-- Menu entries: shown, shown, curated (highlighted), hidden -->
+      <g fill="#FFFFFF">
+        <circle cx="146" cy="152" r="17" fill-opacity="0.85"/>
+        <rect x="182" y="140" width="176" height="24" rx="12" fill-opacity="0.85"/>
+
+        <circle cx="146" cy="216" r="17" fill-opacity="0.85"/>
+        <rect x="182" y="204" width="140" height="24" rx="12" fill-opacity="0.85"/>
+      </g>
+
+      <rect x="110" y="250" width="292" height="68" rx="34" fill="#FFFFFF"/>
+      <circle cx="146" cy="284" r="17" fill="url(#logoInk)"/>
+      <rect x="182" y="272" width="190" height="24" rx="12" fill="url(#logoInk)"/>
+
+      <g fill="#FFFFFF" fill-opacity="0.32">
+        <circle cx="146" cy="356" r="17"/>
+        <rect x="182" y="344" width="110" height="24" rx="12"/>
+      </g>
+
+      <!-- Badge: the tune mark used for the plugin's own menu entry -->
+      <circle cx="404" cy="404" r="68" fill="#FFFFFF"/>
+      <g stroke="url(#logoBadge)" stroke-width="11" stroke-linecap="round">
+        <line x1="370" y1="380" x2="438" y2="380"/>
+        <line x1="370" y1="404" x2="438" y2="404"/>
+        <line x1="370" y1="428" x2="438" y2="428"/>
+      </g>
+      <g fill="#FFFFFF" stroke="url(#logoBadge)" stroke-width="8">
+        <circle cx="420" cy="380" r="10"/>
+        <circle cx="386" cy="404" r="10"/>
+        <circle cx="410" cy="428" r="10"/>
+      </g>
+  </svg>
+
+  <g font-family="'Segoe UI', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif">
+    <text x="560" y="330" font-size="96" font-weight="700" fill="#FFFFFF">Menu Curator</text>
+    <rect x="564" y="362" width="150" height="8" rx="4" fill="url(#accent)"/>
+    <text x="562" y="436" font-size="36" fill="#D6D3E8">Show, hide, rename, re-icon and</text>
+    <text x="562" y="482" font-size="36" fill="#D6D3E8">reorder plugins in the dashboard menu</text>
+  </g>
+</svg>

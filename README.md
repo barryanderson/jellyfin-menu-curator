@@ -24,6 +24,7 @@ Many plugins add an entry to the dashboard menu, and many useful settings pages 
 - [How it works](#how-it-works)
 - [Frequently asked questions](#frequently-asked-questions)
 - [Uninstalling and rolling back](#uninstalling-and-rolling-back)
+  - [Getting the normal menu back](#getting-the-normal-menu-back)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [Licence](#licence)
@@ -138,13 +139,75 @@ It is designed not to. It only changes the menu list, and if anything unexpected
 - **Roll back:** remove the current version, then install an earlier release's zip manually.
 - **Forget your rules:** delete `plugins/configurations/Jellyfin.Plugin.MenuCurator.xml`.
 
+### Getting the normal menu back
+
+| Situation | What to do |
+|---|---|
+| The settings page works | Select **Reset menu** at the bottom of the settings page. |
+| The settings page does not open | Run **Reset dashboard menu** from **Dashboard > Scheduled Tasks**, or [reset from the command line](#reset-from-the-command-line). |
+| You deleted the plugin folder by hand | [Restart Jellyfin](#after-deleting-the-plugin-folder), then reload the dashboard. |
+| The dashboard still shows the old menu | Wait a minute and reload, or [clear the dashboard's cached menu](#clear-the-dashboards-cached-menu). |
+
+#### Reset from the command line
+
+These commands use Jellyfin's API, so they work without the settings page. They need an API key: create one under **Dashboard > API Keys**, and keep it private. Replace `http://your-server:8096` with your server's address, including any base URL path, and `YOUR_API_KEY` with the key.
+
+Delete every Menu Curator rule, keeping the plugin installed:
+
+```bash
+curl -X POST "http://your-server:8096/Plugins/c86ff527-927b-4653-abc1-4b7d6fbf1a09/Configuration" \
+  -H "Authorization: MediaBrowser Token=\"YOUR_API_KEY\"" \
+  -H "Content-Type: application/json" \
+  -d '{"Entries":[]}'
+```
+
+Or uninstall the plugin, then restart Jellyfin when convenient:
+
+```bash
+curl -X DELETE "http://your-server:8096/Plugins/c86ff527-927b-4653-abc1-4b7d6fbf1a09" \
+  -H "Authorization: MediaBrowser Token=\"YOUR_API_KEY\""
+```
+
+Both print nothing when they succeed. An HTTP 404 from the first command means Menu Curator is not loaded, so it is not changing the menu.
+
+On Windows PowerShell, the reset is:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://your-server:8096/Plugins/c86ff527-927b-4653-abc1-4b7d6fbf1a09/Configuration" `
+  -Headers @{ Authorization = 'MediaBrowser Token="YOUR_API_KEY"' } `
+  -ContentType "application/json" -Body '{"Entries":[]}'
+```
+
+#### After deleting the plugin folder
+
+Jellyfin keeps running plugins loaded until it restarts, so deleting the folder has no effect until then. Restart Jellyfin, for example:
+
+| Installation | Restart |
+|---|---|
+| Docker | `docker restart <container name>` |
+| Linux packages | `sudo systemctl restart jellyfin` |
+| Windows | Restart Jellyfin from its tray icon, or restart the Jellyfin service in **Services** |
+
+Once Jellyfin has restarted without the plugin, it sends the normal menu. Reload the dashboard. The leftover settings file, `plugins/configurations/Jellyfin.Plugin.MenuCurator.xml`, has no effect without the plugin; delete it if you want a clean slate when reinstalling.
+
+#### Clear the dashboard's cached menu
+
+The dashboard keeps a copy of the menu in the browser for up to a minute, and keeps it across reloads. To drop that copy straight away, open the dashboard, press F12, open the **Console** tab, paste this and press Enter:
+
+```js
+(r => { r.onupgradeneeded = () => r.transaction.abort(); r.onerror = () => location.reload(); r.onsuccess = () => { const db = r.result; try { const tx = db.transaction('keyval', 'readwrite'); tx.objectStore('keyval').delete('jellyfin-query-cache'); tx.oncomplete = () => location.reload(); } catch { location.reload(); } }; })(indexedDB.open('keyval-store'));
+```
+
+It deletes only the dashboard's cached data (your sign-in is kept) and reloads the page. Each browser keeps its own copy, so run it in each browser that still shows the old menu.
+
 ## Troubleshooting
 
 | Problem | What to try |
 |---|---|
-| The menu has not changed after saving | Reload the dashboard. If it still shows the old menu, wait a minute and reload again: some browsers keep a copy of the menu for up to a minute. |
+| The menu has not changed after saving | Reload the dashboard. If it still shows the old menu, wait a minute and reload again, or [clear the dashboard's cached menu](#clear-the-dashboards-cached-menu). |
 | I hid Menu Curator and cannot find it | Open **Dashboard > Plugins**, select **Menu Curator**, then **Settings**. |
-| I want the normal menu back | Select **Reset menu** on the settings page, or run **Reset dashboard menu** from **Dashboard > Scheduled Tasks**. |
+| I want the normal menu back | See [Getting the normal menu back](#getting-the-normal-menu-back), which also covers a manually deleted plugin folder. |
 | The settings page shows an error | Look in the browser console for lines starting with `[MenuCurator]`, and in the server log for lines containing `MenuCurator`. |
 | No plugin image on the Plugins page | Check that `banner.png` and `meta.json` are in the plugin folder, and restart Jellyfin. |
 

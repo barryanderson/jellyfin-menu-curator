@@ -1,0 +1,20 @@
+# Build output
+bin/
+obj/
+artifacts/
+*.zip
+
+# IDE
+.vs/
+.idea/
+*.user
+
+# Dev instance (local settings and throwaway data)
+dev/.env
+dev/config*/
+dev/cache*/
+dev/media*/
+
+# Secrets
+.env
+*.env

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.MenuCurator.Configuration;
 using Jellyfin.Plugin.MenuCurator.Filters;
+using Jellyfin.Plugin.MenuCurator.Pages;
 using Jellyfin.Plugin.MenuCurator.Rules;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +19,15 @@ namespace Jellyfin.Plugin.MenuCurator.Tests;
 
 public class ConfigurationPagesResultFilterTests
 {
-    private static readonly MenuRules HideReports = new(["reports"]);
+    private static readonly Guid ReportsId = Guid.NewGuid();
+    private static readonly Guid NeptuneId = Guid.NewGuid();
+    private static readonly MenuRules HideReports = new([new MenuEntryRule { Name = "reports", Visible = false }]);
+
+    private static readonly MenuPage[] AllPages =
+    [
+        new() { Name = "NeptuneIndexers", DisplayName = "Neptune Indexers", PluginId = NeptuneId, PluginName = "Neptune Indexers", EnableInMainMenu = false, MenuIcon = "search" },
+        new() { Name = "reports_custom", DisplayName = "Custom reports", PluginId = ReportsId, PluginName = "Reports", EnableInMainMenu = false },
+    ];
 
     [Fact]
     public async Task SidebarRequest_HidesEntries_AndKeepsListType()
@@ -86,7 +96,8 @@ public class ConfigurationPagesResultFilterTests
 
         var filter = new ConfigurationPagesResultFilter(
             NullLogger<ConfigurationPagesResultFilter>.Instance,
-            () => throw new InvalidOperationException("Simulated rule failure"));
+            () => throw new InvalidOperationException("Simulated rule failure"),
+            () => AllPages);
         await filter.OnResultExecutionAsync(context, () =>
         {
             nextCalled = true;
@@ -110,9 +121,63 @@ public class ConfigurationPagesResultFilterTests
         Assert.Same(unexpected, ((ObjectResult)context.Result).Value);
     }
 
+    [Fact]
+    public async Task NoRules_LeavesTheServerListInPlace()
+    {
+        var (context, original) = CreateContext("?enableInMainMenu=true");
+
+        await RunFilter(context, MenuRules.None);
+
+        Assert.Same(original, ((ObjectResult)context.Result).Value);
+    }
+
+    [Fact]
+    public async Task PinnedPage_IsAddedAsAServerEntry_WithOverridesAndOrder()
+    {
+        var (context, _) = CreateContext("?enableInMainMenu=true");
+        var rules = new MenuRules(
+        [
+            new MenuEntryRule { Name = "NeptuneIndexers", Visible = true, Order = 0 },
+            new MenuEntryRule { Name = "beta", DisplayName = "Second", MenuIcon = "looks_two", Order = 1 },
+        ]);
+
+        await RunFilter(context, rules);
+
+        var value = Assert.IsType<List<FakePageInfo>>(((ObjectResult)context.Result).Value);
+        Assert.Equal(["NeptuneIndexers", "beta", "alpha", "reports"], value.Select(p => p.Name));
+
+        var pinned = value[0];
+        Assert.Equal("Neptune Indexers", pinned.DisplayName);
+        Assert.Equal("search", pinned.MenuIcon);
+        Assert.Equal(NeptuneId, pinned.PluginId);
+        Assert.True(pinned.EnableInMainMenu);
+        Assert.Null(pinned.MenuSection);
+
+        Assert.Equal("Second", value[1].DisplayName);
+        Assert.Equal("looks_two", value[1].MenuIcon);
+    }
+
+    [Fact]
+    public async Task SecondEntryFromOnePlugin_GetsItsOwnStableId()
+    {
+        var rules = new MenuRules([new MenuEntryRule { Name = "reports_custom", Visible = true }]);
+
+        var (first, _) = CreateContext("?enableInMainMenu=true");
+        await RunFilter(first, rules);
+        var (second, _) = CreateContext("?enableInMainMenu=true");
+        await RunFilter(second, rules);
+
+        var value = (List<FakePageInfo>)((ObjectResult)first.Result).Value!;
+        Assert.Equal(value.Count, value.Select(p => p.PluginId).Distinct().Count());
+        Assert.Equal(ReportsId, value.Single(p => p.Name == "reports").PluginId);
+
+        var derived = value.Single(p => p.Name == "reports_custom").PluginId;
+        Assert.Equal(derived, ((List<FakePageInfo>)((ObjectResult)second.Result).Value!).Single(p => p.Name == "reports_custom").PluginId);
+    }
+
     private static Task RunFilter(ResultExecutingContext context, MenuRules rules)
     {
-        var filter = new ConfigurationPagesResultFilter(NullLogger<ConfigurationPagesResultFilter>.Instance, () => rules);
+        var filter = new ConfigurationPagesResultFilter(NullLogger<ConfigurationPagesResultFilter>.Instance, () => rules, () => AllPages);
         return filter.OnResultExecutionAsync(context, () => Task.FromResult<ResultExecutedContext>(null!));
     }
 
@@ -130,9 +195,9 @@ public class ConfigurationPagesResultFilterTests
 
         var original = new List<FakePageInfo>
         {
-            new() { Name = "alpha" },
-            new() { Name = "reports" },
-            new() { Name = "beta" },
+            new() { Name = "alpha", DisplayName = "Alpha", PluginId = Guid.NewGuid() },
+            new() { Name = "reports", DisplayName = "Reports", PluginId = ReportsId },
+            new() { Name = "beta", DisplayName = "Beta", PluginId = Guid.NewGuid() },
         };
         var result = new ObjectResult(original) { DeclaredType = typeof(IEnumerable<FakePageInfo>) };
 
@@ -147,6 +212,10 @@ public class ConfigurationPagesResultFilterTests
         public bool EnableInMainMenu { get; set; } = true;
 
         public string? DisplayName { get; set; }
+
+        public string? MenuSection { get; set; }
+
+        public string? MenuIcon { get; set; }
 
         public Guid? PluginId { get; set; }
     }

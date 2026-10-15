@@ -6,13 +6,25 @@
 </head>
 <body>
     <div id="MenuCuratorConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button,emby-checkbox">
+        <style>
+            #MenuCuratorConfigPage .mcRow { padding: 0.75em 0; border-bottom: 1px solid rgba(128, 128, 128, 0.25); }
+            #MenuCuratorConfigPage .mcRowHead { display: flex; align-items: center; gap: 0.5em; }
+            #MenuCuratorConfigPage .mcRowHead .checkboxContainer { flex: 1; margin-bottom: 0; }
+            #MenuCuratorConfigPage .mcFields { display: flex; flex-wrap: wrap; gap: 1em; margin: 0.5em 0 0 2.6em; }
+            #MenuCuratorConfigPage .mcField { display: flex; flex-direction: column; flex: 1 1 14em; max-width: 22em; }
+            #MenuCuratorConfigPage .mcIconField { display: flex; align-items: center; gap: 0.5em; }
+            #MenuCuratorConfigPage .mcDescription { margin: 0.4em 0 0 2.6em; }
+            #MenuCuratorConfigPage .mcMove { min-width: 2.5em; }
+            #MenuCuratorConfigPage .mcMove[disabled] { visibility: hidden; }
+            #MenuCuratorConfigPage .mcEmpty { opacity: 0.7; }
+        </style>
         <div data-role="content">
             <div class="content-primary">
                 <form id="MenuCuratorConfigForm">
                     <div class="verticalSection">
                         <h2 class="sectionTitle">Menu Curator</h2>
-                        <p>Choose which plugin pages appear in the dashboard menu.</p>
-                        <div class="fieldDescription">Changes can take up to a minute to appear in the menu. If they have not appeared by then, reload the dashboard.</div>
+                        <p>Choose which plugin pages appear in the dashboard menu, what they are called, their icons and their order.</p>
+                        <div class="fieldDescription">Saving reloads the dashboard so the menu updates straight away.</div>
                     </div>
 
                     <div id="mcError" class="verticalSection hide">
@@ -20,9 +32,15 @@
                     </div>
 
                     <div class="verticalSection">
-                        <h3 class="sectionTitle">Menu pages</h3>
-                        <div class="fieldDescription">Untick a page to remove it from the menu. Its settings stay available from Dashboard &gt; Plugins.</div>
-                        <div id="mcMenuPages"></div>
+                        <h3 class="sectionTitle">In the menu</h3>
+                        <div class="fieldDescription">Untick a page to remove it from the menu; its settings stay available from Dashboard &gt; Plugins. Leave a name or icon blank to keep the plugin's own. Icons are <a href="https://fonts.google.com/icons" target="_blank" rel="noopener noreferrer">Material icon</a> names, such as <code>extension</code> or <code>dark_mode</code>.</div>
+                        <div id="mcShown"></div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Other pages</h3>
+                        <div class="fieldDescription">Pages their plugins leave out of the menu. Tick one to add it.</div>
+                        <div id="mcOther"></div>
                     </div>
 
                     <div id="mcStaleSection" class="verticalSection hide">
@@ -49,15 +67,15 @@
             (function () {
                 var pluginId = 'c86ff527-927b-4653-abc1-4b7d6fbf1a09';
                 var ownPageName = 'MenuCurator';
+                var iconPattern = /^[a-z0-9_]{1,64}$/;
                 var page = document.querySelector('#MenuCuratorConfigPage');
+
+                // Editor state: one row per page, plus saved rules whose page is not loaded.
+                var state = { rows: [], stale: [], withoutPages: [] };
 
                 // Page names are matched case-insensitively, as on the server.
                 function key(name) {
                     return (name || '').toLowerCase();
-                }
-
-                function byDisplayName(a, b) {
-                    return a.DisplayName.localeCompare(b.DisplayName);
                 }
 
                 // Names come from other plugins, so everything placed in markup is escaped.
@@ -70,15 +88,14 @@
                         .replace(/'/g, '&#39;');
                 }
 
-                // Rows are built as markup so each emby-checkbox is created inside its label:
-                // the element reads its parent label when the dashboard upgrades it.
-                function checkboxRow(labelText, description, checked, dataName, dataValue) {
-                    return '<div class="checkboxContainer checkboxContainer-withDescription">'
+                // Each emby-checkbox is created inside its label: the element reads its parent label
+                // when the dashboard upgrades it, so it cannot be created detached.
+                function checkbox(labelText, checked, attrs) {
+                    return '<div class="checkboxContainer">'
                         + '<label class="emby-checkbox-label">'
-                        + '<input type="checkbox" is="emby-checkbox" data-' + dataName + '="' + escapeHtml(dataValue) + '"' + (checked ? ' checked' : '') + ' />'
+                        + '<input type="checkbox" is="emby-checkbox" ' + attrs + (checked ? ' checked' : '') + ' />'
                         + '<span>' + escapeHtml(labelText) + '</span>'
                         + '</label>'
-                        + (description ? '<div class="fieldDescription checkboxFieldDescription">' + escapeHtml(description) + '</div>' : '')
                         + '</div>';
                 }
 
@@ -87,48 +104,203 @@
                     page.querySelector('#mcError').classList.remove('hide');
                 }
 
-                function render(config, listing) {
+                function shownRows() {
+                    return state.rows.filter(function (r) { return r.visible; });
+                }
+
+                function buildState(config, listing) {
                     var rules = {};
                     (config.Entries || []).forEach(function (rule) {
-                        rules[key(rule.Name)] = rule;
+                        if (rule && rule.Name && !rules[key(rule.Name)]) {
+                            rules[key(rule.Name)] = rule;
+                        }
                     });
 
                     var known = {};
-                    listing.Pages.forEach(function (p) {
+                    var original = 0;
+                    state.rows = listing.Pages.map(function (p) {
                         known[key(p.Name)] = true;
+                        var rule = rules[key(p.Name)];
+                        return {
+                            page: p,
+                            visible: rule ? rule.Visible : p.EnableInMainMenu,
+                            displayName: (rule && rule.DisplayName) || '',
+                            icon: (rule && rule.MenuIcon) || '',
+                            order: rule && typeof rule.Order === 'number' ? rule.Order : null,
+                            original: original++
+                        };
                     });
 
-                    page.querySelector('#mcMenuPages').innerHTML = listing.Pages
-                        .filter(function (p) { return p.EnableInMainMenu; })
-                        .sort(byDisplayName)
-                        .map(function (p) {
-                            var rule = rules[key(p.Name)];
-                            var visible = rule ? rule.Visible : true;
-                            var description = p.PluginName + ', page "' + p.Name + '"';
-                            if (key(p.Name) === key(ownPageName)) {
-                                description += '. If hidden, open Menu Curator from Dashboard > Plugins.';
-                            }
-
-                            return checkboxRow(p.DisplayName, description, visible, 'menu-page', p.Name);
-                        })
-                        .join('');
-
-                    var stale = (config.Entries || []).filter(function (rule) {
-                        return rule.Name && !known[key(rule.Name)];
+                    // Same ordering as the server: ordered pages first, then the rest in the server's order.
+                    state.rows.sort(function (a, b) {
+                        var ao = a.order === null ? Infinity : a.order;
+                        var bo = b.order === null ? Infinity : b.order;
+                        return ao !== bo ? ao - bo : a.original - b.original;
                     });
-                    page.querySelector('#mcStale').innerHTML = stale
-                        .map(function (rule) {
-                            var text = rule.Name + (rule.Visible ? ' (shown)' : ' (hidden)');
-                            return checkboxRow(text, null, true, 'stale-rule', rule.Name);
+
+                    state.stale = (config.Entries || [])
+                        .filter(function (rule) { return rule && rule.Name && !known[key(rule.Name)]; })
+                        .map(function (rule) { return { rule: rule, keep: true }; });
+
+                    state.withoutPages = listing.PluginsWithoutPages || [];
+                }
+
+                function shownRow(row, index, count) {
+                    var p = row.page;
+                    var defaultIcon = p.MenuIcon || 'folder';
+                    var icon = iconPattern.test(row.icon) ? row.icon : defaultIcon;
+                    var description = p.PluginName + ', page "' + p.Name + '"';
+                    if (key(p.Name) === key(ownPageName)) {
+                        description += '. If hidden, open Menu Curator from Dashboard > Plugins.';
+                    }
+
+                    var invalidIcon = row.icon && !iconPattern.test(row.icon)
+                        ? '<div class="fieldDescription">Icon names use lower case letters, digits and underscores, so this one will be ignored.</div>'
+                        : '';
+
+                    return '<div class="mcRow" data-row="' + index + '">'
+                        + '<div class="mcRowHead">'
+                        + checkbox(row.displayName || p.DisplayName, true, 'data-toggle="' + index + '"')
+                        + '<button type="button" is="paper-icon-button-light" class="paper-icon-button-light mcMove" data-up="' + index + '" title="Move up"' + (index === 0 ? ' disabled' : '') + '><span class="material-icons arrow_upward" aria-hidden="true"></span></button>'
+                        + '<button type="button" is="paper-icon-button-light" class="paper-icon-button-light mcMove" data-down="' + index + '" title="Move down"' + (index === count - 1 ? ' disabled' : '') + '><span class="material-icons arrow_downward" aria-hidden="true"></span></button>'
+                        + '</div>'
+                        + '<div class="mcFields">'
+                        + '<label class="mcField"><span class="fieldDescription">Menu name</span>'
+                        + '<input type="text" class="emby-input" data-display-name="' + index + '" value="' + escapeHtml(row.displayName) + '" placeholder="' + escapeHtml(p.DisplayName) + '" maxlength="100" /></label>'
+                        + '<label class="mcField"><span class="fieldDescription">Icon</span>'
+                        + '<span class="mcIconField"><span class="material-icons" data-icon-preview="' + index + '" aria-hidden="true">' + escapeHtml(icon) + '</span>'
+                        + '<input type="text" class="emby-input" data-icon="' + index + '" value="' + escapeHtml(row.icon) + '" placeholder="' + escapeHtml(defaultIcon) + '" maxlength="64" spellcheck="false" autocapitalize="off" /></span>'
+                        + invalidIcon + '</label>'
+                        + '</div>'
+                        + '<div class="fieldDescription mcDescription">' + escapeHtml(description) + '</div>'
+                        + '</div>';
+                }
+
+                function otherRow(row, index) {
+                    var p = row.page;
+                    var description = p.PluginName + ', page "' + p.Name + '"'
+                        + (p.EnableInMainMenu ? '. In the menu by default.' : '');
+
+                    return '<div class="mcRow">'
+                        + '<div class="mcRowHead">' + checkbox(row.displayName || p.DisplayName, false, 'data-toggle="' + index + '"') + '</div>'
+                        + '<div class="fieldDescription mcDescription">' + escapeHtml(description) + '</div>'
+                        + '</div>';
+                }
+
+                function render() {
+                    var shown = shownRows();
+                    page.querySelector('#mcShown').innerHTML = shown.length
+                        ? shown.map(function (row) {
+                            return shownRow(row, state.rows.indexOf(row), shown.length);
+                        }).join('')
+                        : '<p class="mcEmpty">No plugin pages are in the menu.</p>';
+
+                    var other = state.rows
+                        .filter(function (r) { return !r.visible; })
+                        .sort(function (a, b) { return a.page.DisplayName.localeCompare(b.page.DisplayName); });
+                    page.querySelector('#mcOther').innerHTML = other.length
+                        ? other.map(function (row) { return otherRow(row, state.rows.indexOf(row)); }).join('')
+                        : '<p class="mcEmpty">Every page is in the menu.</p>';
+
+                    page.querySelector('#mcStale').innerHTML = state.stale
+                        .map(function (s, i) {
+                            var text = s.rule.Name + (s.rule.Visible ? ' (shown)' : ' (hidden)');
+                            return checkbox(text, s.keep, 'data-stale="' + i + '"');
                         })
                         .join('');
-                    page.querySelector('#mcStaleSection').classList.toggle('hide', stale.length === 0);
+                    page.querySelector('#mcStaleSection').classList.toggle('hide', state.stale.length === 0);
 
-                    var withoutPages = listing.PluginsWithoutPages || [];
-                    page.querySelector('#mcNoPages').innerHTML = withoutPages
+                    page.querySelector('#mcNoPages').innerHTML = state.withoutPages
                         .map(function (name) { return '<li>' + escapeHtml(name) + '</li>'; })
                         .join('');
-                    page.querySelector('#mcNoPagesSection').classList.toggle('hide', withoutPages.length === 0);
+                    page.querySelector('#mcNoPagesSection').classList.toggle('hide', state.withoutPages.length === 0);
+                }
+
+                // Moves a shown row past its shown neighbour; hidden rows keep their place.
+                function move(index, direction) {
+                    var shown = shownRows();
+                    var position = shown.indexOf(state.rows[index]);
+                    var target = shown[position + direction];
+                    if (!target) {
+                        return;
+                    }
+
+                    var a = state.rows.indexOf(shown[position]);
+                    var b = state.rows.indexOf(target);
+                    var temp = state.rows[a];
+                    state.rows[a] = state.rows[b];
+                    state.rows[b] = temp;
+                    render();
+                }
+
+                function toRules() {
+                    var rules = [];
+                    var position = 0;
+                    state.rows.forEach(function (row) {
+                        var rule = {
+                            Name: row.page.Name,
+                            Visible: row.visible,
+                            DisplayName: row.displayName.trim() || null,
+                            MenuIcon: row.icon.trim() || null,
+                            Order: row.visible ? position++ : null
+                        };
+
+                        // Shown pages always get a rule to fix their order. Other pages only need
+                        // one when they differ from their plugin's default or carry an override.
+                        if (rule.Visible || row.page.EnableInMainMenu || rule.DisplayName || rule.MenuIcon) {
+                            rules.push(rule);
+                        }
+                    });
+
+                    state.stale.forEach(function (s) {
+                        if (s.keep) {
+                            rules.push(s.rule);
+                        }
+                    });
+
+                    return rules;
+                }
+
+                // jellyfin-web keeps API responses, including the menu, in IndexedDB and treats them
+                // as fresh for a minute. Deleting that copy before reloading makes the menu update now.
+                // If the storage ever changes, this does nothing and the menu updates within a minute.
+                function clearDashboardCache() {
+                    return new Promise(function (resolve) {
+                        var done = false;
+                        function finish() {
+                            if (!done) {
+                                done = true;
+                                resolve();
+                            }
+                        }
+
+                        setTimeout(finish, 2000);
+                        try {
+                            var request = indexedDB.open('keyval-store');
+                            request.onupgradeneeded = function () {
+                                // The database did not exist; abort rather than create it empty.
+                                request.transaction.abort();
+                            };
+                            request.onerror = finish;
+                            request.onblocked = finish;
+                            request.onsuccess = function () {
+                                var db = request.result;
+                                try {
+                                    var tx = db.transaction('keyval', 'readwrite');
+                                    tx.objectStore('keyval').delete('jellyfin-query-cache');
+                                    tx.oncomplete = tx.onerror = tx.onabort = function () {
+                                        db.close();
+                                        finish();
+                                    };
+                                } catch (e) {
+                                    db.close();
+                                    finish();
+                                }
+                            };
+                        } catch (e) {
+                            finish();
+                        }
+                    });
                 }
 
                 function load() {
@@ -138,7 +310,8 @@
                         ApiClient.getPluginConfiguration(pluginId),
                         ApiClient.getJSON(ApiClient.getUrl('MenuCurator/Pages'))
                     ]).then(function (results) {
-                        render(results[0], results[1]);
+                        buildState(results[0], results[1]);
+                        render();
                     }).catch(function (err) {
                         console.error('[MenuCurator] failed to load', err);
                         showError('Could not load the list of plugin pages (' + ((err && (err.message || err.status)) || 'unknown error') + '). Check the browser console and the server log for errors from Menu Curator.');
@@ -152,35 +325,13 @@
                     Dashboard.showLoadingMsg();
 
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-                        // Start from the saved rules so rules for unloaded pages survive a save.
-                        var rules = {};
-                        (config.Entries || []).forEach(function (rule) {
-                            if (rule.Name) {
-                                rules[key(rule.Name)] = rule;
-                            }
-                        });
-
-                        page.querySelectorAll('input[data-menu-page]').forEach(function (input) {
-                            var name = input.dataset.menuPage;
-                            if (input.checked) {
-                                // Shown is the default for menu pages, so no rule is needed.
-                                delete rules[key(name)];
-                            } else {
-                                rules[key(name)] = { Name: name, Visible: false };
-                            }
-                        });
-
-                        page.querySelectorAll('input[data-stale-rule]').forEach(function (input) {
-                            if (!input.checked) {
-                                delete rules[key(input.dataset.staleRule)];
-                            }
-                        });
-
-                        config.Entries = Object.keys(rules).map(function (k) { return rules[k]; });
+                        config.Entries = toRules();
                         return ApiClient.updatePluginConfiguration(pluginId, config);
                     }).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
-                        load();
+                        return clearDashboardCache().then(function () {
+                            window.location.reload();
+                        });
                     }).catch(function (err) {
                         console.error('[MenuCurator] failed to save', err);
                         Dashboard.hideLoadingMsg();
@@ -189,6 +340,42 @@
 
                     return false;
                 }
+
+                page.addEventListener('change', function (e) {
+                    var t = e.target;
+                    if (t.dataset.toggle !== undefined) {
+                        var row = state.rows[+t.dataset.toggle];
+                        row.visible = t.checked;
+                        if (row.visible) {
+                            // A page added to the menu goes to the bottom.
+                            state.rows.splice(state.rows.indexOf(row), 1);
+                            state.rows.push(row);
+                        }
+
+                        render();
+                    } else if (t.dataset.stale !== undefined) {
+                        state.stale[+t.dataset.stale].keep = t.checked;
+                    }
+                });
+
+                page.addEventListener('input', function (e) {
+                    var t = e.target;
+                    if (t.dataset.displayName !== undefined) {
+                        state.rows[+t.dataset.displayName].displayName = t.value;
+                    } else if (t.dataset.icon !== undefined) {
+                        var row = state.rows[+t.dataset.icon];
+                        row.icon = t.value.trim();
+                        var preview = page.querySelector('[data-icon-preview="' + t.dataset.icon + '"]');
+                        preview.textContent = iconPattern.test(row.icon) ? row.icon : (row.page.MenuIcon || 'folder');
+                    }
+                });
+
+                page.addEventListener('click', function (e) {
+                    var button = e.target.closest('button[data-up], button[data-down]');
+                    if (button) {
+                        move(+(button.dataset.up !== undefined ? button.dataset.up : button.dataset.down), button.dataset.up !== undefined ? -1 : 1);
+                    }
+                });
 
                 page.addEventListener('pageshow', load);
                 page.querySelector('#MenuCuratorConfigForm').addEventListener('submit', save);

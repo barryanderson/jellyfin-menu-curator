@@ -41,11 +41,12 @@ public class MenuRuleEngineTests
     }
 
     [Fact]
-    public void Apply_ProofOfConceptRules_HideReports()
+    public void Apply_ProofOfConceptRules_HideReportsAndFileTransformation()
     {
-        var result = MenuRuleEngine.Apply(Pages, p => p, MenuRules.ProofOfConcept);
+        string?[] pages = ["File Transformation", "Intro Skipper", "reports", "Moonbase"];
 
-        Assert.Equal(Pages.Length - 1, result.Count);
-        Assert.DoesNotContain("reports", result.ToList());
+        var result = MenuRuleEngine.Apply(pages, p => p, MenuRules.ProofOfConcept);
+
+        Assert.Equal(new string?[] { "Intro Skipper", "Moonbase" }, result.ToList());
     }
 }

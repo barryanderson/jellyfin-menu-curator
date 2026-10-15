@@ -22,7 +22,7 @@ public sealed class MenuRules
     /// <summary>
     /// Gets the hardcoded Phase 1 rules. Replaced by persisted configuration in Phase 2.
     /// </summary>
-    public static MenuRules ProofOfConcept { get; } = new(["reports"]);
+    public static MenuRules ProofOfConcept { get; } = new(["reports", "File Transformation"]);
 
     /// <summary>
     /// Gets the page names to remove from the menu.

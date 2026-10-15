@@ -7,7 +7,7 @@ Throwaway Jellyfin servers for testing Menu Curator. Never test on a real server
 1. `cp dev/.env.example dev/.env` and adjust the port if 8097 is taken.
 2. `docker compose -f dev/compose.yaml --profile official up -d` (or `--profile lsio`).
 3. Open `http://localhost:<port>`, complete the setup wizard, and create an admin user.
-4. Dashboard > Plugins > Catalogue: install **Reports** and **Playback Reporting**, then restart.
+4. Dashboard > Plugins: show **Available** plugins, install **Reports** and **Playback Reporting**, then restart.
    * Reports has one menu page (`reports`), a good one to hide from Dashboard > Menu Curator.
    * Playback Reporting has one menu page (`user_report`), several HTML pages that are not in the menu, and JavaScript resources.
 5. Dashboard > API Keys: create a key and put it in `dev/.env` as `JELLYFIN_API_KEY`.

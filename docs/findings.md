@@ -38,7 +38,7 @@ Citations in this section refer to these commits (`server12`, `web12`).
 * External plugins declare their image as **`imagePath` in `meta.json`**: a file inside the plugin folder (`server12:MediaBrowser.Common/Plugins/PluginManifest.cs#L103-108`). `GET /Plugins/{id}/{version}/Image` serves it (`server12:Jellyfin.Api/Controllers/PluginsController.cs#L222-243`). **Confirmed.**
 * When a plugin is installed from a repository, the server downloads the package's `imageUrl` into the plugin folder and sets `imagePath` itself (`server12:Emby.Server.Implementations/Plugins/PluginManager.cs#L388-420`). **Confirmed.**
 * The new `IHasEmbeddedImage` interface is documented as being for plugins built into the server only. External plugins should use `meta.json` (`server12:MediaBrowser.Controller/Plugins/IHasEmbeddedImage.cs`). It only takes effect where the server creates a placeholder record for a bundled plugin (`PluginManager.cs#L605-619`). **Confirmed.**
-* Consequence for packaging: the release zip ships the logo file plus a `meta.json` that names it, for manual installs, and `manifest.json` sets `imageUrl` for catalogue installs. **Inferred.**
+* Consequence for packaging: `manifest.json` sets `imageUrl`, which the server downloads into the plugin folder on install. **Inferred.** Decided in Phase 4: the release zip does not ship the image, because jprm writes an `image` key rather than `imagePath` to `meta.json`, so manual installs show no plugin image.
 
 ### Inputs for the 12.x build
 

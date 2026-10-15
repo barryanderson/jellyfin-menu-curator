@@ -4,7 +4,7 @@
 # GITHUB_REPOSITORY and GITHUB_OWNER are filled in by the release workflow.
 name: "Menu Curator"
 guid: "c86ff527-927b-4653-abc1-4b7d6fbf1a09"
-version: "1.0.0.0"
+version: "1.1.0.0"
 targetAbi: "12.2.0.0"
 framework: "net10.0"
 imageUrl: "https://raw.githubusercontent.com/GITHUB_REPOSITORY/main/assets/banner.png"
@@ -18,5 +18,5 @@ owner: "GITHUB_OWNER"
 artifacts:
   - "Jellyfin.Plugin.MenuCurator.dll"
 changelog: >
-  First release. Show or hide plugin pages in the dashboard menu, add pages their
-  plugins leave out, and set each entry's name, icon and order from a settings page.
+  Reset the menu from the settings page or the new "Reset dashboard menu" scheduled
+  task. The menu now returns to normal as soon as Menu Curator is uninstalled.

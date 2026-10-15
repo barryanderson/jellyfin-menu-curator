@@ -12,3 +12,4 @@ First release. Requires Jellyfin 12.2 or later.
 - The menu updates as soon as settings are saved.
 - Rules for pages that are not loaded are kept, flagged on the settings page, and can be deleted.
 - If anything goes wrong while adjusting the menu, the normal menu is served and a warning is logged.
+- The release zip includes the plugin image, so manual installs show it on the Plugins page.

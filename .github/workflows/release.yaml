@@ -69,6 +69,9 @@ jobs:
             --output=artifacts \
             --version="${{ steps.version.outputs.version }}" \
             --dotnet-framework=net10.0
+          python scripts/add-plugin-image.py \
+            "artifacts/menu-curator_${{ steps.version.outputs.version }}.zip" \
+            assets/banner.png
           ls -l artifacts
 
       - name: Create the GitHub release

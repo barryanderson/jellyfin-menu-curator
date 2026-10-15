@@ -33,7 +33,7 @@
 
                     <div class="verticalSection">
                         <h3 class="sectionTitle">In the menu</h3>
-                        <div class="fieldDescription">Untick a page to remove it from the menu; its settings stay available from Dashboard &gt; Plugins. Leave a name or icon blank to keep the plugin's own. Icons are <a href="https://fonts.google.com/icons" target="_blank" rel="noopener noreferrer">Material icon</a> names, such as <code>extension</code> or <code>dark_mode</code>.</div>
+                        <div class="fieldDescription">Untick a page to remove it from the menu; its settings stay available from Dashboard &gt; Plugins. Leave a name blank to keep the plugin's own. The first icon in each list is the plugin's own, or the folder icon if the plugin has none. The menu can only show <a href="https://fonts.google.com/icons" target="_blank" rel="noopener noreferrer">Material icons</a>, not plugin logos; choose "Custom icon name" to use one that is not listed.</div>
                         <div id="mcShown"></div>
                     </div>
 
@@ -68,7 +68,32 @@
                 var pluginId = 'c86ff527-927b-4653-abc1-4b7d6fbf1a09';
                 var ownPageName = 'MenuCurator';
                 var iconPattern = /^[a-z0-9_]{1,64}$/;
+                var customValue = '__custom';
                 var page = document.querySelector('#MenuCuratorConfigPage');
+
+                // Suggested icons. All are in the Material icon font the dashboard loads
+                // (material-design-icons-iconfont 6.7.0); "Custom" accepts any other name.
+                var iconGroups = [
+                    ['Media', 'movie theaters local_movies video_library ondemand_video smart_display live_tv tv subscriptions playlist_play slideshow photo_library image collections music_note library_music album queue_music headphones radio podcasts mic subtitles closed_caption hd 4k'],
+                    ['Playback', 'play_circle skip_next fast_forward speed equalizer graphic_eq cast devices'],
+                    ['Discovery', 'search manage_search travel_explore explore star favorite bookmark label tag category trending_up rss_feed newspaper menu_book'],
+                    ['Tools and settings', 'extension tune settings build admin_panel_settings auto_fix_high cleaning_services filter_list sort sync update backup restore download cloud_download cloud_upload storage inventory_2 archive'],
+                    ['Data and reports', 'analytics assessment bar_chart insights query_stats table_chart dashboard view_list grid_view history schedule event calendar_month timer'],
+                    ['People and security', 'people group person face manage_accounts security shield lock key vpn_key'],
+                    ['Network and system', 'dns hub lan router wifi memory api code terminal bug_report data_object link public language translate'],
+                    ['Look and feel', 'dark_mode light_mode palette brush auto_awesome widgets apps layers'],
+                    ['Other', 'folder home info help notifications chat forum mail description article lightbulb tips_and_updates science verified sports_esports']
+                ].map(function (g) { return { label: g[0], icons: g[1].split(' ') }; });
+
+                var suggestedIcons = {};
+                iconGroups.forEach(function (g) {
+                    g.icons.forEach(function (i) { suggestedIcons[i] = true; });
+                });
+
+                function iconLabel(name) {
+                    var words = name.replace(/_/g, ' ');
+                    return words.charAt(0).toUpperCase() + words.slice(1);
+                }
 
                 // Editor state: one row per page, plus saved rules whose page is not loaded.
                 var state = { rows: [], stale: [], withoutPages: [] };
@@ -116,16 +141,34 @@
                         }
                     });
 
+                    // A plugin's icon is the one it declares for a page. Pages that declare none
+                    // borrow the first icon declared by another page of the same plugin.
+                    var pluginIcons = {};
+                    listing.Pages.forEach(function (p) {
+                        if (iconPattern.test(p.MenuIcon || '') && !pluginIcons[p.PluginId]) {
+                            pluginIcons[p.PluginId] = p.MenuIcon;
+                        }
+                    });
+
                     var known = {};
                     var original = 0;
                     state.rows = listing.Pages.map(function (p) {
                         known[key(p.Name)] = true;
                         var rule = rules[key(p.Name)];
+                        var pluginIcon = iconPattern.test(p.MenuIcon || '') ? p.MenuIcon : (pluginIcons[p.PluginId] || null);
+                        var icon = (rule && rule.MenuIcon) || '';
+                        if (icon === pluginIcon) {
+                            // Saved earlier as the plugin's icon; show it as that choice.
+                            icon = '';
+                        }
+
                         return {
                             page: p,
+                            pluginIcon: pluginIcon,
                             visible: rule ? rule.Visible : p.EnableInMainMenu,
                             displayName: (rule && rule.DisplayName) || '',
-                            icon: (rule && rule.MenuIcon) || '',
+                            icon: icon,
+                            customIcon: icon !== '' && !suggestedIcons[icon],
                             order: rule && typeof rule.Order === 'number' ? rule.Order : null,
                             original: original++
                         };
@@ -145,17 +188,45 @@
                     state.withoutPages = listing.PluginsWithoutPages || [];
                 }
 
+                // The icon the sidebar will show for a row.
+                function effectiveIcon(row) {
+                    return iconPattern.test(row.icon) ? row.icon : (row.pluginIcon || 'folder');
+                }
+
+                // The plugin's own icon, or the default when it has none, comes first and is the default choice.
+                function iconSelect(row, index) {
+                    var selected = row.customIcon ? customValue : row.icon;
+                    var option = function (value, label) {
+                        return '<option value="' + escapeHtml(value) + '"' + (value === selected ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+                    };
+
+                    var html = '<select class="emby-select emby-select-withcolor" data-icon-select="' + index + '">'
+                        + option('', row.pluginIcon ? iconLabel(row.pluginIcon) + ' (plugin\'s icon)' : 'Folder (default)');
+
+                    iconGroups.forEach(function (group) {
+                        html += '<optgroup label="' + escapeHtml(group.label) + '">'
+                            + group.icons
+                                .filter(function (i) { return i !== row.pluginIcon && !(i === 'folder' && !row.pluginIcon); })
+                                .map(function (i) { return option(i, iconLabel(i)); })
+                                .join('')
+                            + '</optgroup>';
+                    });
+
+                    return html + option(customValue, 'Custom icon name...') + '</select>';
+                }
+
                 function shownRow(row, index, count) {
                     var p = row.page;
-                    var defaultIcon = p.MenuIcon || 'folder';
-                    var icon = iconPattern.test(row.icon) ? row.icon : defaultIcon;
                     var description = p.PluginName + ', page "' + p.Name + '"';
                     if (key(p.Name) === key(ownPageName)) {
                         description += '. If hidden, open Menu Curator from Dashboard > Plugins.';
                     }
 
-                    var invalidIcon = row.icon && !iconPattern.test(row.icon)
-                        ? '<div class="fieldDescription">Icon names use lower case letters, digits and underscores, so this one will be ignored.</div>'
+                    var custom = row.customIcon
+                        ? '<input type="text" class="emby-input" data-icon="' + index + '" value="' + escapeHtml(row.icon) + '" placeholder="Material icon name, such as rocket_launch" maxlength="64" spellcheck="false" autocapitalize="off" />'
+                            + (row.icon && !iconPattern.test(row.icon)
+                                ? '<div class="fieldDescription">Icon names use lower case letters, digits and underscores, so this one will be ignored.</div>'
+                                : '')
                         : '';
 
                     return '<div class="mcRow" data-row="' + index + '">'
@@ -168,9 +239,9 @@
                         + '<label class="mcField"><span class="fieldDescription">Menu name</span>'
                         + '<input type="text" class="emby-input" data-display-name="' + index + '" value="' + escapeHtml(row.displayName) + '" placeholder="' + escapeHtml(p.DisplayName) + '" maxlength="100" /></label>'
                         + '<label class="mcField"><span class="fieldDescription">Icon</span>'
-                        + '<span class="mcIconField"><span class="material-icons" data-icon-preview="' + index + '" aria-hidden="true">' + escapeHtml(icon) + '</span>'
-                        + '<input type="text" class="emby-input" data-icon="' + index + '" value="' + escapeHtml(row.icon) + '" placeholder="' + escapeHtml(defaultIcon) + '" maxlength="64" spellcheck="false" autocapitalize="off" /></span>'
-                        + invalidIcon + '</label>'
+                        + '<span class="mcIconField"><span class="material-icons" data-icon-preview="' + index + '" aria-hidden="true">' + escapeHtml(effectiveIcon(row)) + '</span>'
+                        + iconSelect(row, index) + '</span>'
+                        + custom + '</label>'
                         + '</div>'
                         + '<div class="fieldDescription mcDescription">' + escapeHtml(description) + '</div>'
                         + '</div>';
@@ -241,7 +312,10 @@
                             Name: row.page.Name,
                             Visible: row.visible,
                             DisplayName: row.displayName.trim() || null,
-                            MenuIcon: row.icon.trim() || null,
+                            // An icon borrowed from another page of the plugin has to be saved,
+                            // because the server only knows the icon each page declares itself.
+                            MenuIcon: row.icon.trim()
+                                || (row.pluginIcon && row.pluginIcon !== row.page.MenuIcon ? row.pluginIcon : null),
                             Order: row.visible ? position++ : null
                         };
 
@@ -355,6 +429,14 @@
                         render();
                     } else if (t.dataset.stale !== undefined) {
                         state.stale[+t.dataset.stale].keep = t.checked;
+                    } else if (t.dataset.iconSelect !== undefined) {
+                        var selected = state.rows[+t.dataset.iconSelect];
+                        selected.customIcon = t.value === customValue;
+                        selected.icon = selected.customIcon ? '' : t.value;
+                        render();
+                        if (selected.customIcon) {
+                            page.querySelector('input[data-icon="' + t.dataset.iconSelect + '"]').focus();
+                        }
                     }
                 });
 
@@ -365,8 +447,7 @@
                     } else if (t.dataset.icon !== undefined) {
                         var row = state.rows[+t.dataset.icon];
                         row.icon = t.value.trim();
-                        var preview = page.querySelector('[data-icon-preview="' + t.dataset.icon + '"]');
-                        preview.textContent = iconPattern.test(row.icon) ? row.icon : (row.page.MenuIcon || 'folder');
+                        page.querySelector('[data-icon-preview="' + t.dataset.icon + '"]').textContent = effectiveIcon(row);
                     }
                 });
 

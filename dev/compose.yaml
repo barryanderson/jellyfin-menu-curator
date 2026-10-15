@@ -1,0 +1,33 @@
+# Throwaway Jellyfin instances for developing Menu Curator.
+# Run one profile at a time; both use the same host port.
+#
+#   docker compose --profile official up -d
+#   docker compose --profile lsio up -d
+#
+# Settings come from dev/.env (untracked). Copy .env.example to start.
+
+services:
+  jellyfin-official:
+    profiles: ["official"]
+    image: jellyfin/jellyfin:10.11.11
+    container_name: menucurator-dev-official
+    ports:
+      - "${JELLYFIN_DEV_PORT:-8097}:8096"
+    volumes:
+      - ./config-official:/config
+      - ./cache-official:/cache
+    restart: "no"
+
+  jellyfin-lsio:
+    profiles: ["lsio"]
+    image: lscr.io/linuxserver/jellyfin:10.11.11
+    container_name: menucurator-dev-lsio
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+    ports:
+      - "${JELLYFIN_DEV_PORT:-8097}:8096"
+    volumes:
+      - ./config-lsio:/config
+    restart: "no"

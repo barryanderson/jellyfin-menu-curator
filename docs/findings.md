@@ -4,7 +4,48 @@ Source research for Menu Curator, done before any plugin code exists.
 
 Each conclusion is labelled **Confirmed** (read in the source cited) or **Inferred** (reasoned from the source or from ASP.NET Core behaviour, still to be checked on a running server in Phase 1).
 
-## Sources
+**Target changed to Jellyfin 12.x.** The research below was first done against 10.11.11. The section "Jellyfin 12.2" records what differs in 12.2 and takes precedence. Sections 1 to 9 remain the baseline wherever 12.2 is the same.
+
+## Jellyfin 12.2
+
+| Repository | Ref | Commit |
+|---|---|---|
+| `jellyfin/jellyfin` | `v12.2` (latest release, 5 October 2026) | `ca0f16eb7c195f720a1493ed469a27c4657db0c6` |
+| `jellyfin/jellyfin-web` | `v12.2` | `61b1f890365ad15138e943e694af723c1d47df2a` |
+
+Citations in this section refer to these commits (`server12`, `web12`).
+
+### Unchanged from 10.11
+
+* **The sidebar still uses `GET /web/ConfigurationPages?enableInMainMenu=true`.** `web12:src/apps/dashboard/components/drawer/sections/PluginDrawerSection.tsx#L18` is unchanged. The hook now calls `getPluginApi(api).getConfigurationPages` (`web12:src/apps/dashboard/features/plugins/api/useConfigurationPages.ts#L16`) instead of the dashboard API, but `@jellyfin/sdk` 1.0.0 (the version jellyfin-web 12.2 locks) still requests `/web/ConfigurationPages` (`lib/generated-client/api/plugin-api.js#L134`). This is only a regrouping. **Confirmed.**
+* **The server endpoint is unchanged.** `server12:Jellyfin.Api/Controllers/DashboardController.cs` differs from 10.11.11 only by a `[Tags("Plugin")]` OpenAPI attribute (`#L23`). The route (`#L49`), the elevation policy (`#L50`) and the filtering are the same, so the filter's `Dashboard` / `GetConfigurationPages` match still applies. **Confirmed.**
+* These files are identical to 10.11.11: `ConfigurationPageInfo.cs`, `PluginPageInfo.cs`, `IPluginServiceRegistrator.cs`, and jellyfin-web's `configurationPage.ts` and `routes.tsx`. **Confirmed.**
+* **Plugin service registration is unchanged** (`server12:Emby.Server.Implementations/Plugins/PluginManager.cs#L206`).
+* **The middleware pipeline order in `Configure` is unchanged** (`server12:Jellyfin.Server/Startup.cs#L173-191`). The only changes are additions in `ConfigureServices` (request localisation, a device access hosted service).
+* **The MVC output formatters are unchanged** (`server12:Jellyfin.Server/Extensions/ApiServiceCollectionExtensions.cs#L125-137`). **Confirmed.**
+* **Plugin config pages still run as classic pages.** jellyfin-web 12.2 still sets `window.ApiClient` (`web12:src/lib/jellyfin-apiclient/ServerConnections.js#L95`) and `window.Dashboard` (`web12:src/utils/dashboard.js#L267`), and `ApiClient` still offers `getPluginConfiguration` and `updatePluginConfiguration` (`web12:src/apiclient.d.ts#L184,L292`). So a template-style `configPage.html` still works. **Confirmed (globals present); end to end inferred.**
+
+### Changed in 12.2
+
+* **`MenuIcon` is now rendered** as a Material icon name, defaulting to `folder`: `<Icon>{pageInfo.MenuIcon ?? 'folder'}</Icon>` (`web12:.../PluginDrawerSection.tsx#L53`). Icon overrides are therefore useful on 12.2. **Confirmed.**
+* **`MenuSection` is still ignored.** jellyfin-web 12.2 never reads it, and all entries remain in the one Plugins list. **Confirmed.**
+* **Entries are still keyed by `PluginId`** (`#L49`), so the duplicate-key caveat from section 7.3 still applies. **Confirmed.**
+* **The client now caches API responses for longer.** The query client now sets `staleTime` to 1 minute and `gcTime` to 24 hours (`web12:src/utils/query/queryClient.ts#L10-12,L48-50`). Responses are persisted to IndexedDB through `PersistQueryClientProvider`, cleared only when the web build version changes (`web12:src/RootApp.tsx#L18-22`). After rules change, the sidebar can show the old menu for up to a minute, even after a reload, before it refetches. The config page should say so. **Confirmed (settings); user-visible delay inferred.**
+* **The server and the NuGet packages now target .NET 10.** `MediaBrowser.Controller` targets `net10.0`, and the `Jellyfin.Controller` 12.2.0 package lists only `net10.0`. A 10.11 build is not a valid 12.x plugin, even though one loaded on 12.2 in an informal test (the log showed the assembly loading, but nothing showed the filter running). **Confirmed (frameworks).**
+
+### Plugin logo
+
+* External plugins declare their image as **`imagePath` in `meta.json`**: a file inside the plugin folder (`server12:MediaBrowser.Common/Plugins/PluginManifest.cs#L103-108`). `GET /Plugins/{id}/{version}/Image` serves it (`server12:Jellyfin.Api/Controllers/PluginsController.cs#L222-243`). **Confirmed.**
+* When a plugin is installed from a repository, the server downloads the package's `imageUrl` into the plugin folder and sets `imagePath` itself (`server12:Emby.Server.Implementations/Plugins/PluginManager.cs#L388-420`). **Confirmed.**
+* The new `IHasEmbeddedImage` interface is documented as being for plugins built into the server only. External plugins should use `meta.json` (`server12:MediaBrowser.Controller/Plugins/IHasEmbeddedImage.cs`). It only takes effect where the server creates a placeholder record for a bundled plugin (`PluginManager.cs#L605-619`). **Confirmed.**
+* Consequence for packaging: the release zip ships the logo file plus a `meta.json` that names it, for manual installs, and `manifest.json` sets `imageUrl` for catalogue installs. **Inferred.**
+
+### Inputs for the 12.x build
+
+* `TargetFramework` `net10.0`. `Jellyfin.Controller` and `Jellyfin.Model` **12.2.0** (the latest on nuget.org, matching the server). `build.yaml` `targetAbi: "12.2.0.0"`, `framework: "net10.0"`.
+* Dev instances are pinned to `jellyfin/jellyfin:12.2` and `lscr.io/linuxserver/jellyfin:version-12.2ubu2604` (linuxserver.io has no plain `12.2` tag).
+
+## Sources (10.11 baseline)
 
 | Repository | Ref | Commit |
 |---|---|---|

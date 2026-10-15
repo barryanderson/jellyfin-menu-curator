@@ -20,6 +20,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public const string ConfigPageName = "MenuCurator";
 
     /// <summary>
+    /// The plugin id.
+    /// </summary>
+    public static readonly Guid PluginId = Guid.Parse("c86ff527-927b-4653-abc1-4b7d6fbf1a09");
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="Plugin"/> class.
     /// </summary>
     /// <param name="applicationPaths">Instance of the <see cref="IApplicationPaths"/> interface.</param>
@@ -34,7 +39,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override string Name => "Menu Curator";
 
     /// <inheritdoc />
-    public override Guid Id => Guid.Parse("c86ff527-927b-4653-abc1-4b7d6fbf1a09");
+    public override Guid Id => PluginId;
 
     /// <inheritdoc />
     public override string Description => "Choose which plugin pages appear in the dashboard menu.";
@@ -43,6 +48,15 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// Gets the current plugin instance.
     /// </summary>
     public static Plugin? Instance { get; private set; }
+
+    /// <summary>
+    /// Deletes every menu rule, returning the dashboard menu to what the plugins themselves ask for.
+    /// </summary>
+    public void ResetMenu()
+    {
+        Configuration.Entries = [];
+        SaveConfiguration();
+    }
 
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()

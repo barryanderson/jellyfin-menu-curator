@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.MenuCurator.Pages;
 using Jellyfin.Plugin.MenuCurator.Rules;
+using MediaBrowser.Common.Plugins;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -36,10 +37,16 @@ public sealed class ConfigurationPagesResultFilter : IAsyncResultFilter
     /// </summary>
     /// <param name="logger">Instance of the <see cref="ILogger{ConfigurationPagesResultFilter}"/> interface.</param>
     /// <param name="catalogue">The page catalogue, used to add pages their plugins leave out of the menu.</param>
-    public ConfigurationPagesResultFilter(ILogger<ConfigurationPagesResultFilter> logger, PageCatalogue catalogue)
+    /// <param name="pluginManager">Instance of the <see cref="IPluginManager"/> interface.</param>
+    public ConfigurationPagesResultFilter(
+        ILogger<ConfigurationPagesResultFilter> logger,
+        PageCatalogue catalogue,
+        IPluginManager pluginManager)
         : this(
             logger,
-            static () => MenuRules.FromConfiguration(Plugin.Instance?.Configuration),
+            () => IsEnabled(pluginManager.GetPlugin(Plugin.PluginId))
+                ? MenuRules.FromConfiguration(Plugin.Instance?.Configuration)
+                : MenuRules.None,
             () => catalogue.GetListing().Pages)
     {
     }
@@ -73,6 +80,17 @@ public sealed class ConfigurationPagesResultFilter : IAsyncResultFilter
 
         return next();
     }
+
+    /// <summary>
+    /// Gets a value indicating whether Jellyfin still lists the plugin as enabled.
+    /// </summary>
+    /// <param name="plugin">The plugin's record, or <c>null</c> if Jellyfin no longer has one.</param>
+    /// <returns><c>true</c> when the menu should be curated.</returns>
+    /// <remarks>
+    /// Uninstalling deletes the plugin's record and disabling marks it disabled, but the plugin's code
+    /// stays loaded until the server restarts. Checking on every request returns the menu to normal straight away.
+    /// </remarks>
+    internal static bool IsEnabled(LocalPlugin? plugin) => plugin is { IsEnabledAndSupported: true };
 
     /// <summary>
     /// Derives a stable stand-in plugin id for a second menu entry from the same plugin.

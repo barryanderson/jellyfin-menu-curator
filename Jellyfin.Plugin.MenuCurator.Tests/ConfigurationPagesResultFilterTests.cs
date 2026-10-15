@@ -6,6 +6,8 @@ using Jellyfin.Plugin.MenuCurator.Configuration;
 using Jellyfin.Plugin.MenuCurator.Filters;
 using Jellyfin.Plugin.MenuCurator.Pages;
 using Jellyfin.Plugin.MenuCurator.Rules;
+using MediaBrowser.Common.Plugins;
+using MediaBrowser.Model.Plugins;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -119,6 +121,27 @@ public class ConfigurationPagesResultFilterTests
         await RunFilter(context, HideReports);
 
         Assert.Same(unexpected, ((ObjectResult)context.Result).Value);
+    }
+
+    [Theory]
+    [InlineData(PluginStatus.Active, true, true)]
+    [InlineData(PluginStatus.Restart, true, true)]
+    [InlineData(PluginStatus.Disabled, true, false)]
+    [InlineData(PluginStatus.Deleted, true, false)]
+    [InlineData(PluginStatus.Malfunctioned, true, false)]
+    [InlineData(PluginStatus.Active, false, false)]
+    public void IsEnabled_FollowsJellyfinsPluginState(PluginStatus status, bool supported, bool expected)
+    {
+        var plugin = new LocalPlugin("/plugins/MenuCurator_1.0.0.0", supported, new PluginManifest { Status = status });
+
+        Assert.Equal(expected, ConfigurationPagesResultFilter.IsEnabled(plugin));
+    }
+
+    [Fact]
+    public void IsEnabled_UninstalledPlugin_IsNotEnabled()
+    {
+        // Uninstalling removes the plugin's record, though its code stays loaded until a restart.
+        Assert.False(ConfigurationPagesResultFilter.IsEnabled(null));
     }
 
     [Fact]

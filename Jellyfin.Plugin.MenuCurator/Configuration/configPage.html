@@ -60,37 +60,26 @@
                     return a.DisplayName.localeCompare(b.DisplayName);
                 }
 
-                // Built with DOM calls rather than markup, because names come from other plugins.
-                function checkboxRow(labelText, description, checked, data) {
-                    var container = document.createElement('div');
-                    container.className = 'checkboxContainer checkboxContainer-withDescription';
+                // Names come from other plugins, so everything placed in markup is escaped.
+                function escapeHtml(value) {
+                    return String(value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                }
 
-                    var label = document.createElement('label');
-                    label.className = 'emby-checkbox-label';
-
-                    var input = document.createElement('input', { is: 'emby-checkbox' });
-                    input.setAttribute('is', 'emby-checkbox');
-                    input.type = 'checkbox';
-                    input.checked = checked;
-                    Object.keys(data).forEach(function (k) {
-                        input.dataset[k] = data[k];
-                    });
-
-                    var span = document.createElement('span');
-                    span.textContent = labelText;
-
-                    label.appendChild(input);
-                    label.appendChild(span);
-                    container.appendChild(label);
-
-                    if (description) {
-                        var desc = document.createElement('div');
-                        desc.className = 'fieldDescription checkboxFieldDescription';
-                        desc.textContent = description;
-                        container.appendChild(desc);
-                    }
-
-                    return container;
+                // Rows are built as markup so each emby-checkbox is created inside its label:
+                // the element reads its parent label when the dashboard upgrades it.
+                function checkboxRow(labelText, description, checked, dataName, dataValue) {
+                    return '<div class="checkboxContainer checkboxContainer-withDescription">'
+                        + '<label class="emby-checkbox-label">'
+                        + '<input type="checkbox" is="emby-checkbox" data-' + dataName + '="' + escapeHtml(dataValue) + '"' + (checked ? ' checked' : '') + ' />'
+                        + '<span>' + escapeHtml(labelText) + '</span>'
+                        + '</label>'
+                        + (description ? '<div class="fieldDescription checkboxFieldDescription">' + escapeHtml(description) + '</div>' : '')
+                        + '</div>';
                 }
 
                 function showError(message) {
@@ -109,12 +98,10 @@
                         known[key(p.Name)] = true;
                     });
 
-                    var menuList = page.querySelector('#mcMenuPages');
-                    menuList.innerHTML = '';
-                    listing.Pages
+                    page.querySelector('#mcMenuPages').innerHTML = listing.Pages
                         .filter(function (p) { return p.EnableInMainMenu; })
                         .sort(byDisplayName)
-                        .forEach(function (p) {
+                        .map(function (p) {
                             var rule = rules[key(p.Name)];
                             var visible = rule ? rule.Visible : true;
                             var description = p.PluginName + ', page "' + p.Name + '"';
@@ -122,28 +109,26 @@
                                 description += '. If hidden, open Menu Curator from Dashboard > Plugins.';
                             }
 
-                            menuList.appendChild(checkboxRow(p.DisplayName, description, visible, { menuPage: p.Name }));
-                        });
+                            return checkboxRow(p.DisplayName, description, visible, 'menu-page', p.Name);
+                        })
+                        .join('');
 
                     var stale = (config.Entries || []).filter(function (rule) {
                         return rule.Name && !known[key(rule.Name)];
                     });
-                    var staleList = page.querySelector('#mcStale');
-                    staleList.innerHTML = '';
-                    stale.forEach(function (rule) {
-                        var text = rule.Name + (rule.Visible ? ' (shown)' : ' (hidden)');
-                        staleList.appendChild(checkboxRow(text, null, true, { staleRule: rule.Name }));
-                    });
+                    page.querySelector('#mcStale').innerHTML = stale
+                        .map(function (rule) {
+                            var text = rule.Name + (rule.Visible ? ' (shown)' : ' (hidden)');
+                            return checkboxRow(text, null, true, 'stale-rule', rule.Name);
+                        })
+                        .join('');
                     page.querySelector('#mcStaleSection').classList.toggle('hide', stale.length === 0);
 
-                    var noPages = page.querySelector('#mcNoPages');
-                    noPages.innerHTML = '';
-                    listing.PluginsWithoutPages.forEach(function (name) {
-                        var item = document.createElement('li');
-                        item.textContent = name;
-                        noPages.appendChild(item);
-                    });
-                    page.querySelector('#mcNoPagesSection').classList.toggle('hide', listing.PluginsWithoutPages.length === 0);
+                    var withoutPages = listing.PluginsWithoutPages || [];
+                    page.querySelector('#mcNoPages').innerHTML = withoutPages
+                        .map(function (name) { return '<li>' + escapeHtml(name) + '</li>'; })
+                        .join('');
+                    page.querySelector('#mcNoPagesSection').classList.toggle('hide', withoutPages.length === 0);
                 }
 
                 function load() {
@@ -156,7 +141,7 @@
                         render(results[0], results[1]);
                     }).catch(function (err) {
                         console.error('[MenuCurator] failed to load', err);
-                        showError('Could not load the list of plugin pages. Check the server log for errors from Menu Curator.');
+                        showError('Could not load the list of plugin pages (' + ((err && (err.message || err.status)) || 'unknown error') + '). Check the browser console and the server log for errors from Menu Curator.');
                     }).finally(function () {
                         Dashboard.hideLoadingMsg();
                     });

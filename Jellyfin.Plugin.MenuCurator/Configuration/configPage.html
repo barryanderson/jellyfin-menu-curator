@@ -60,6 +60,14 @@
                             <span>Save</span>
                         </button>
                     </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Reset</h3>
+                        <div class="fieldDescription">Delete all Menu Curator settings and return the menu to what the plugins themselves ask for. You can also run the "Reset dashboard menu" task from Dashboard &gt; Scheduled Tasks.</div>
+                        <button is="emby-button" type="button" id="mcReset" class="raised block emby-button">
+                            <span>Reset menu</span>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -394,12 +402,12 @@
                     });
                 }
 
-                function save(e) {
-                    e.preventDefault();
+                // Saves the rules, then reloads the dashboard so the menu updates.
+                function saveRules(getRules) {
                     Dashboard.showLoadingMsg();
 
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-                        config.Entries = toRules();
+                        config.Entries = getRules();
                         return ApiClient.updatePluginConfiguration(pluginId, config);
                     }).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
@@ -411,8 +419,20 @@
                         Dashboard.hideLoadingMsg();
                         showError('Could not save the settings. Check the server log for errors.');
                     });
+                }
 
+                function save(e) {
+                    e.preventDefault();
+                    saveRules(toRules);
                     return false;
+                }
+
+                function reset() {
+                    var message = 'Reset the dashboard menu? This deletes all your Menu Curator settings, '
+                        + 'including hidden and added pages, names, icons and order.';
+                    if (window.confirm(message)) {
+                        saveRules(function () { return []; });
+                    }
                 }
 
                 page.addEventListener('change', function (e) {
@@ -460,6 +480,7 @@
 
                 page.addEventListener('pageshow', load);
                 page.querySelector('#MenuCuratorConfigForm').addEventListener('submit', save);
+                page.querySelector('#mcReset').addEventListener('click', reset);
             })();
         </script>
     </div>

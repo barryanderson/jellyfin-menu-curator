@@ -1,4 +1,5 @@
 using System.Linq;
+using Jellyfin.Plugin.MenuCurator.Configuration;
 using Jellyfin.Plugin.MenuCurator.Rules;
 using Xunit;
 
@@ -41,12 +42,30 @@ public class MenuRuleEngineTests
     }
 
     [Fact]
-    public void Apply_ProofOfConceptRules_HideReportsAndFileTransformation()
+    public void FromConfiguration_HidesOnlyEntriesMarkedNotVisible()
     {
-        string?[] pages = ["File Transformation", "Intro Skipper", "reports", "Moonbase"];
+        var config = new PluginConfiguration
+        {
+            Entries =
+            [
+                new MenuEntryRule { Name = "File Transformation", Visible = false },
+                new MenuEntryRule { Name = "Intro Skipper", Visible = true },
+                new MenuEntryRule { Name = " ", Visible = false },
+                null!,
+            ]
+        };
+        string?[] pages = ["File Transformation", "Intro Skipper", "Moonbase"];
 
-        var result = MenuRuleEngine.Apply(pages, p => p, MenuRules.ProofOfConcept);
+        var result = MenuRuleEngine.Apply(pages, p => p, MenuRules.FromConfiguration(config));
 
         Assert.Equal(new string?[] { "Intro Skipper", "Moonbase" }, result.ToList());
+    }
+
+    [Fact]
+    public void FromConfiguration_NullOrEmpty_ChangesNothing()
+    {
+        Assert.Empty(MenuRules.FromConfiguration(null).HiddenNames);
+        Assert.Empty(MenuRules.FromConfiguration(new PluginConfiguration()).HiddenNames);
+        Assert.Empty(MenuRules.FromConfiguration(new PluginConfiguration { Entries = null! }).HiddenNames);
     }
 }

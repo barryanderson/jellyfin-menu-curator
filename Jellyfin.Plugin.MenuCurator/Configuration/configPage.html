@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Menu Curator</title>
+</head>
+<body>
+    <div id="MenuCuratorConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="MenuCuratorConfigForm">
+                    <div class="verticalSection">
+                        <h2 class="sectionTitle">Menu Curator</h2>
+                        <p>Choose which plugin pages appear in the dashboard menu.</p>
+                        <div class="fieldDescription">Changes can take up to a minute to appear in the menu. If they have not appeared by then, reload the dashboard.</div>
+                    </div>
+
+                    <div id="mcError" class="verticalSection hide">
+                        <p id="mcErrorText"></p>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Menu pages</h3>
+                        <div class="fieldDescription">Untick a page to remove it from the menu. Its settings stay available from Dashboard &gt; Plugins.</div>
+                        <div id="mcMenuPages"></div>
+                    </div>
+
+                    <div id="mcStaleSection" class="verticalSection hide">
+                        <h3 class="sectionTitle">Rules for pages that are not loaded</h3>
+                        <div class="fieldDescription">These rules refer to pages from plugins that are disabled, removed or renamed. They have no effect until the page returns. Untick a rule to delete it.</div>
+                        <div id="mcStale"></div>
+                    </div>
+
+                    <div id="mcNoPagesSection" class="verticalSection hide">
+                        <h3 class="sectionTitle">Plugins with no settings page</h3>
+                        <div class="fieldDescription">These plugins register no page, so they cannot appear in the menu.</div>
+                        <ul id="mcNoPages"></ul>
+                    </div>
+
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            (function () {
+                var pluginId = 'c86ff527-927b-4653-abc1-4b7d6fbf1a09';
+                var ownPageName = 'MenuCurator';
+                var page = document.querySelector('#MenuCuratorConfigPage');
+
+                // Page names are matched case-insensitively, as on the server.
+                function key(name) {
+                    return (name || '').toLowerCase();
+                }
+
+                function byDisplayName(a, b) {
+                    return a.DisplayName.localeCompare(b.DisplayName);
+                }
+
+                // Built with DOM calls rather than markup, because names come from other plugins.
+                function checkboxRow(labelText, description, checked, data) {
+                    var container = document.createElement('div');
+                    container.className = 'checkboxContainer checkboxContainer-withDescription';
+
+                    var label = document.createElement('label');
+                    label.className = 'emby-checkbox-label';
+
+                    var input = document.createElement('input', { is: 'emby-checkbox' });
+                    input.setAttribute('is', 'emby-checkbox');
+                    input.type = 'checkbox';
+                    input.checked = checked;
+                    Object.keys(data).forEach(function (k) {
+                        input.dataset[k] = data[k];
+                    });
+
+                    var span = document.createElement('span');
+                    span.textContent = labelText;
+
+                    label.appendChild(input);
+                    label.appendChild(span);
+                    container.appendChild(label);
+
+                    if (description) {
+                        var desc = document.createElement('div');
+                        desc.className = 'fieldDescription checkboxFieldDescription';
+                        desc.textContent = description;
+                        container.appendChild(desc);
+                    }
+
+                    return container;
+                }
+
+                function showError(message) {
+                    page.querySelector('#mcErrorText').textContent = message;
+                    page.querySelector('#mcError').classList.remove('hide');
+                }
+
+                function render(config, listing) {
+                    var rules = {};
+                    (config.Entries || []).forEach(function (rule) {
+                        rules[key(rule.Name)] = rule;
+                    });
+
+                    var known = {};
+                    listing.Pages.forEach(function (p) {
+                        known[key(p.Name)] = true;
+                    });
+
+                    var menuList = page.querySelector('#mcMenuPages');
+                    menuList.innerHTML = '';
+                    listing.Pages
+                        .filter(function (p) { return p.EnableInMainMenu; })
+                        .sort(byDisplayName)
+                        .forEach(function (p) {
+                            var rule = rules[key(p.Name)];
+                            var visible = rule ? rule.Visible : true;
+                            var description = p.PluginName + ', page "' + p.Name + '"';
+                            if (key(p.Name) === key(ownPageName)) {
+                                description += '. If hidden, open Menu Curator from Dashboard > Plugins.';
+                            }
+
+                            menuList.appendChild(checkboxRow(p.DisplayName, description, visible, { menuPage: p.Name }));
+                        });
+
+                    var stale = (config.Entries || []).filter(function (rule) {
+                        return rule.Name && !known[key(rule.Name)];
+                    });
+                    var staleList = page.querySelector('#mcStale');
+                    staleList.innerHTML = '';
+                    stale.forEach(function (rule) {
+                        var text = rule.Name + (rule.Visible ? ' (shown)' : ' (hidden)');
+                        staleList.appendChild(checkboxRow(text, null, true, { staleRule: rule.Name }));
+                    });
+                    page.querySelector('#mcStaleSection').classList.toggle('hide', stale.length === 0);
+
+                    var noPages = page.querySelector('#mcNoPages');
+                    noPages.innerHTML = '';
+                    listing.PluginsWithoutPages.forEach(function (name) {
+                        var item = document.createElement('li');
+                        item.textContent = name;
+                        noPages.appendChild(item);
+                    });
+                    page.querySelector('#mcNoPagesSection').classList.toggle('hide', listing.PluginsWithoutPages.length === 0);
+                }
+
+                function load() {
+                    Dashboard.showLoadingMsg();
+                    page.querySelector('#mcError').classList.add('hide');
+                    Promise.all([
+                        ApiClient.getPluginConfiguration(pluginId),
+                        ApiClient.getJSON(ApiClient.getUrl('MenuCurator/Pages'))
+                    ]).then(function (results) {
+                        render(results[0], results[1]);
+                    }).catch(function (err) {
+                        console.error('[MenuCurator] failed to load', err);
+                        showError('Could not load the list of plugin pages. Check the server log for errors from Menu Curator.');
+                    }).finally(function () {
+                        Dashboard.hideLoadingMsg();
+                    });
+                }
+
+                function save(e) {
+                    e.preventDefault();
+                    Dashboard.showLoadingMsg();
+
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        // Start from the saved rules so rules for unloaded pages survive a save.
+                        var rules = {};
+                        (config.Entries || []).forEach(function (rule) {
+                            if (rule.Name) {
+                                rules[key(rule.Name)] = rule;
+                            }
+                        });
+
+                        page.querySelectorAll('input[data-menu-page]').forEach(function (input) {
+                            var name = input.dataset.menuPage;
+                            if (input.checked) {
+                                // Shown is the default for menu pages, so no rule is needed.
+                                delete rules[key(name)];
+                            } else {
+                                rules[key(name)] = { Name: name, Visible: false };
+                            }
+                        });
+
+                        page.querySelectorAll('input[data-stale-rule]').forEach(function (input) {
+                            if (!input.checked) {
+                                delete rules[key(input.dataset.staleRule)];
+                            }
+                        });
+
+                        config.Entries = Object.keys(rules).map(function (k) { return rules[k]; });
+                        return ApiClient.updatePluginConfiguration(pluginId, config);
+                    }).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                        load();
+                    }).catch(function (err) {
+                        console.error('[MenuCurator] failed to save', err);
+                        Dashboard.hideLoadingMsg();
+                        showError('Could not save the settings. Check the server log for errors.');
+                    });
+
+                    return false;
+                }
+
+                page.addEventListener('pageshow', load);
+                page.querySelector('#MenuCuratorConfigForm').addEventListener('submit', save);
+            })();
+        </script>
+    </div>
+</body>
+</html>

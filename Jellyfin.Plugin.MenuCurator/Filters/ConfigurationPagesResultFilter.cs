@@ -33,7 +33,7 @@ public sealed class ConfigurationPagesResultFilter : IAsyncResultFilter
     /// </summary>
     /// <param name="logger">Instance of the <see cref="ILogger{ConfigurationPagesResultFilter}"/> interface.</param>
     public ConfigurationPagesResultFilter(ILogger<ConfigurationPagesResultFilter> logger)
-        : this(logger, static () => MenuRules.ProofOfConcept)
+        : this(logger, static () => MenuRules.FromConfiguration(Plugin.Instance?.Configuration))
     {
     }
 

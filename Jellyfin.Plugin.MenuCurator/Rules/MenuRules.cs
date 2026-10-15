@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using Jellyfin.Plugin.MenuCurator.Configuration;
 
 namespace Jellyfin.Plugin.MenuCurator.Rules;
 
@@ -20,12 +22,29 @@ public sealed class MenuRules
     }
 
     /// <summary>
-    /// Gets the hardcoded Phase 1 rules. Replaced by persisted configuration in Phase 2.
+    /// Gets rules that leave the menu unchanged.
     /// </summary>
-    public static MenuRules ProofOfConcept { get; } = new(["reports", "File Transformation"]);
+    public static MenuRules None { get; } = new([]);
 
     /// <summary>
     /// Gets the page names to remove from the menu.
     /// </summary>
     public IReadOnlySet<string> HiddenNames { get; }
+
+    /// <summary>
+    /// Builds the rules from the saved configuration.
+    /// </summary>
+    /// <param name="configuration">The configuration, or <c>null</c> if the plugin is not initialised.</param>
+    /// <returns>The rules to apply.</returns>
+    public static MenuRules FromConfiguration(PluginConfiguration? configuration)
+    {
+        if (configuration?.Entries is not { Length: > 0 } entries)
+        {
+            return None;
+        }
+
+        return new MenuRules(entries
+            .Where(e => e is not null && !e.Visible && !string.IsNullOrWhiteSpace(e.Name))
+            .Select(e => e.Name));
+    }
 }

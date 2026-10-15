@@ -30,6 +30,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Jellyfin.Plugin.MenuCurator.Tests" />
   </ItemGroup>
 
